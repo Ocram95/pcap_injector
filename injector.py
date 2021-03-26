@@ -6,8 +6,9 @@ from scapy.utils import rdpcap
 from scapy.utils import wrpcap
 from scapy.all import *
 from scapy.layers.inet6 import IPv6
+import random
 
-
+#Field and length of them supported
 FIELD_LENGTH = {
 	"FL": 20,
 	"TC": 8,
@@ -71,16 +72,22 @@ def read_attack(attack_to_read, dim_field):
 	return attack_in_chunks
 
 def find_flows(pcap_to_read, number_packets):
+	#Creation of csv file where each line is composed of three-tuple src and dst for each packet 
 	print("Creating tmp files...")
 	create_tmp_csv = "tshark -r " + pcap_to_read + " -T fields -e ipv6.flow -e ipv6.src -e ipv6.dst -E header=y -E separator=, > tmp.csv"
 	process = subprocess.Popen(create_tmp_csv, shell=True, stdout=subprocess.PIPE)
 	process.wait()
+	#Count of packets that compose each flow, grouping by src, dst and fl
 	df = pd.read_csv('tmp.csv')
 	df = df.groupby(['ipv6.flow', 'ipv6.src', 'ipv6.dst']).size().to_frame('#pkts').reset_index()
+	#Deleting of csv file
 	delete_tmp_csv = "rm tmp.csv"
 	process = subprocess.Popen(delete_tmp_csv, shell=True, stdout=subprocess.PIPE)
 	process.wait()
 	print("Deleting tmp files...")
+	#Adding INDEX column name
+	df.index.name = "INDEX"
+	#Return flows which contains at leats 'number_of_packets' packets
 	return df.loc[df['#pkts'] >= number_packets]
 
 def inject(pcap, source, destination, flow_label, targeted_field, attack_in_chunks):
@@ -93,6 +100,7 @@ def inject(pcap, source, destination, flow_label, targeted_field, attack_in_chun
 	for x in range(len(pkts)):
 		wire_len.append(pkts[x].wirelen)
 		if secret_index < len(attack_in_chunks):
+			#Search for the correct flow
 			if source == pkts[x][IPv6].src and destination == pkts[x][IPv6].dst and flow_label == pkts[x][IPv6].fl:
 				if targeted_field == "FL":
 					pkts[x][IPv6].fl = int(attack_in_chunks[secret_index],2)
@@ -100,49 +108,62 @@ def inject(pcap, source, destination, flow_label, targeted_field, attack_in_chun
 					pkts[x][IPv6].tc = int(attack_in_chunks[secret_index],2)
 				elif targeted_field == "HL":
 					if int(attack_in_chunks[secret_index],2) == 0:
-						pkts[x][IPv6].hlim = pkts[x][IPv6].hlim + 20
+						pkts[x][IPv6].hlim = 10
 					else:
-						pkts[x][IPv6].hlim = pkts[x][IPv6].hlim - 20
+						pkts[x][IPv6].hlim = 255
 				secret_index += 1
 		pkts[x].wirelen = wire_len[index]
 		index += 1
-		wrpcap("injected_" + str(pcap), pkts[x], append=True, linktype=101)
+		#WARNING: check if the linktype is what is needed
+		wrpcap(str(targeted_field) + "_injected_" + str(pcap), pkts[x], append=True, linktype=101)
 	print("Injection succesfully finished!")
 	return pkts, wire_len
 
-# def write_pcap(pkts, wire_len, filename):
-# 	index = 0
-# 	print("Writing the final pcap.")
-# 	for pkt in pkts:
-# 		pkt.wirelen = wire_len[index]
-# 		wrpcap("injected2_" + str(filename), pkt, append=True)
-# 		index += 1
+def flow_selection(flows, number):
+	source = flows.loc[number]['ipv6.src']
+	destination = flows.loc[number]['ipv6.dst']
+	flow_label_extended = flows.loc[number]['ipv6.flow']					#0x000f92c1
+	flow_label = int(flow_label_extended[:2] + flow_label_extended[5:], 16)	#0xf92c1 -> 1020609
+	return source, destination, flow_label
+
+
 
 
 settings, args = process_command_line(sys.argv)
 attack_in_chunks = read_attack(settings.attack, FIELD_LENGTH[settings.field])
 flows = find_flows(settings.pcap, len(attack_in_chunks))
 if len(flows) > 0:
+	print('-' * 25)
 	print("CONVERSATIONS FOUND")
 	print(flows)
+	print('-' * 25)
 	while True:
-		what_flow = int(input("Choose the flow by its index (left column): "))
-		if not what_flow in flows.index:
-			print("Invalid flow index")
-			continue
-		else:
-			source = flows.loc[what_flow]['ipv6.src']
-			destination = flows.loc[what_flow]['ipv6.dst']
-			flow_label_extended = flows.loc[what_flow]['ipv6.flow']					#0x000f92c1
-			flow_label = int(flow_label_extended[:2] + flow_label_extended[5:], 16)	#0xf92c1 -> 1020609
+		operation = input("Choose the flow by its index (leave it blank for the first flow or 'r' for a random choice): ")
+		if operation.strip().isdigit():
+			what_flow = int(operation)
+			if not what_flow in flows.index:
+				print("Invalid flow index")
+				continue
+			else:
+				source, destination, flow_label = flow_selection(flows, what_flow)
+				break
+		elif operation == 'r':
+			rnd_flow = random.choice(flows.index.tolist())
+			print('Flow ' + str(rnd_flow) + ' is choosen.')
+			source, destination, flow_label = flow_selection(flows, rnd_flow)
 			break
-	print("Conversation choosen: src = " + str(source) + " dst = " + str(destination) + " flow label = " + str(flow_label))
+		elif operation == '':
+			print('First flow is chosen.')
+			first_flow = flows.index.tolist()[0]
+			source, destination, flow_label = flow_selection(flows, first_flow)
+			break
+		else:
+			print("This operation is not supported!")
+	print('-' * 25)
+	print("Conversation: src = " + str(source) + " dst = " + str(destination) + " flow label = " + str(flow_label))
+	injected_pcap, wire_len = inject(settings.pcap, source, destination, flow_label, settings.field, attack_in_chunks)
 else:
 	print("No conversations with enough packets are found in this pcap!")
-
-if len(flows) > 0:
-	injected_pcap, wire_len = inject(settings.pcap, source, destination, flow_label, settings.field, attack_in_chunks)
-	# write_pcap(injected_pcap, wire_len, settings.pcap)
 
 
 
