@@ -122,9 +122,7 @@ def extract_packets(pcap, source, destination, src_port, dst_port, protocol, tar
 						secret_extracted += '0'
 				secret_index += 1
 	#Creation of 8 bit chunks to correctly interpret characters
-	print(secret_extracted)
 	secret_in_chunks = list((secret_extracted[0+i:8+i] for i in range(0, len(secret_extracted), 8)))
-	print(secret_in_chunks)
 	secret_string = ''
 	for i in range(len(secret_in_chunks)):
 		secret_string += chr(int(secret_in_chunks[i],2))

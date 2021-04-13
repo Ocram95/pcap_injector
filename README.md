@@ -38,23 +38,26 @@ The three mandatory parameters represent:
 
 Instead, the ```extractor.py``` tool: 
 ```
-$ python3 extractor.py [-h HELP] [-r PCAP] [-f FIELD] [-a ATTACK] 
+$ python3 extractor.py [-h HELP] [-r PCAP] [-f FIELD] [-p PACKETS] [-b BITS] [-i IMAGE]
 ```
 The three mandatory parameters represent: 
 - ```-r PCAP``` it specifies the .pcap file to read and parse.
 - ```-f FIELD``` it specifies the target field to inspect. The available fields are: Flow Label (FL), Traffic Class (TC) and Hop Limit (HL).
 - ```-p PACKETS``` it specifies the number of packets to extract.
+- ```-b BITS``` it specifies the number of bits to extract. It is necessary in the case of the 20-bit Flow Label field.
+- ```-i IMAGE``` it specifies whether to extract an image.
 
 ## Example Usages
 ```
-$ python3 injector.py -r pcap_example.pcap -f TC -a cmd.txt
+$ python3 injector.py -r pcap_example.pcap -f TC -a hello_world.txt
 ```
 This command will inject the payload contained in the "cmd.txt" into the Traffic Class field of a flow chosen by the user within the specified pcap.
+Each attack is tracked in a csv file for future purposes.
 
 ```
-$ python3 extractor.py -r TC_injected_pcap_example.pcap -f TC -p 195
+$ python3 extractor.py -r TC_a=hello_world.txt_pcap_example.pcap -f TC -p 11
 ```
-This command will extract the Traffic Class valuee of the first 195 packets of a flow chosen by the user within the specified pcap
+This command will extract the Traffic Class values of the first 11 packets of a flow chosen by the user within the specified pcap
 
 # Further Reading
 
