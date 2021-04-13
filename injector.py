@@ -122,7 +122,7 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 		pkts[x].wirelen = wire_len[index]
 		index += 1
 		#WARNING: check if the linktype is what is needed
-		wrpcap(str(targeted_field) + "_a=" + str(attack) + "_" + str(pcap), pkts[x], append=True, linktype=101)
+		wrpcap(str(targeted_field) + "_a=" + str(attack).replace(" ", "_") + "_" + str(pcap), pkts[x], append=True, linktype=101)
 	print("Injection succesfully finished!")
 	return pkts, wire_len
 
