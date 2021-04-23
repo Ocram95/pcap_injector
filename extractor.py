@@ -99,6 +99,7 @@ def find_flows(pcap_to_read, number_of_packets):
 	#Return flows which contains at leats 'number_of_packets' packets
 	df_final = df_tcp.append(df_udp)
 	df_final = df_final[['ipv6.src', 'ipv6.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', 'ipv6.nxt', '#pkts']]
+	df_final = df_final.fillna('-')
 	return df_final.loc[df_final['#pkts'] >= number_of_packets]
 
 def extract_packets(pcap, source, destination, src_port, dst_port, protocol, targeted_field, number_of_packets):
@@ -172,11 +173,11 @@ def flow_selection(flows, number):
 	#TODO: extend to more protocols?
 	source = flows.loc[number]['ipv6.src']
 	destination = flows.loc[number]['ipv6.dst']
-	if not math.isnan(flows.loc[number]['tcp.srcport']):
+	if not flows.loc[number]['tcp.srcport'] == '-':
 		protocol = 6
 		src_port = flows.loc[number]['tcp.srcport']
 		dst_port = flows.loc[number]['tcp.dstport']
-	elif not math.isnan(flows.loc[number]['udp.srcport']):
+	elif not flows.loc[number]['udp.srcport'] == '-':
 		protocol = 17
 		src_port = flows.loc[number]['udp.srcport']
 		dst_port = flows.loc[number]['udp.dstport']
@@ -189,7 +190,7 @@ flows = find_flows(settings.pcap, settings.packets)
 if len(flows) > 0:
 	print('-' * 25)
 	print("CONVERSATIONS FOUND")
-	print(flows)
+	print(flows.tail(50))
 	print("Some conversations are omitted.")
 	print('-' * 25)
 	while True:
