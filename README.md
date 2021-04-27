@@ -6,9 +6,9 @@ It consists of two mode:
 - interactive mode, which allows the user to manually establish the covert channel choosing the flow to inject, the secret and the injection mechanism.
 - bulk mode, which enables the automatization of the entire process, combining multiple secrets and injection mechanisms at once.
 
-Each mode consists of two Python scripts that allows the injection and the extraction processes 
+Each mode consists of two Python scripts that allows the injection and the extraction processes.
 
-%the ```injector.py```, which allows the injection of a payload in a given field of a flow, and the ```extractor.py```, which is able to extract the payload from a given field of a flow.
+<!--the ```injector.py```, which allows the injection of a payload in a given field of a flow, and the ```extractor.py```, which is able to extract the payload from a given field of a flow.-->
 
 # Background
 
