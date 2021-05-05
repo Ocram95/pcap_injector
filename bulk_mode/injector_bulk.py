@@ -126,7 +126,8 @@ def inject(pcap, output, attack_dict):
 	for x in range(len(pkts)):
 		wire_len.append(pkts[x].wirelen)
 		#Packet info
-		if pkts[x][IPv6].nh != 58: #Excluding ICMPv6 packets for src/dst problems
+		#Excluding ICMPv6 (58), fragmented packets (44) and no next header (59) for src/dst problems
+		if pkts[x][IPv6].nh != 58 and pkts[x][IPv6].nh != 44 and pkts[x][IPv6].nh != 59:
 			p_flow, p_source, p_destination, p_psrc, p_pdst, p_nxt = pkts[x][IPv6].fl,  pkts[x][IPv6].src, pkts[x][IPv6].dst, pkts[x].sport, pkts[x].dport, pkts[x][IPv6].nh
 			for attack in attack_dict:
 				#Attack info
