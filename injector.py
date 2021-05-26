@@ -118,7 +118,7 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 					if int(attack_in_chunks[secret_index],2) == 0:
 						pkts[x][IPv6].hlim = 10
 					else:
-						pkts[x][IPv6].hlim = 255
+						pkts[x][IPv6].hlim = 250
 				secret_index += 1
 		pkts[x].wirelen = wire_len[index]
 		index += 1

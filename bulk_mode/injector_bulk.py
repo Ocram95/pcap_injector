@@ -145,7 +145,7 @@ def inject(pcap, output, attack_dict):
 							if attack['attack'][attack['counter']] == 0:
 								pkts[x][IPv6].hlim = 10
 							else:
-								pkts[x][IPv6].hlim = 255
+								pkts[x][IPv6].hlim = 250
 						attack['counter'] += 1
 
 		pkts[x].wirelen = wire_len[index]
