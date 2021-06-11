@@ -106,6 +106,9 @@ python3 extractor_bulk.py -r attacks.txt_pcap_example.pcap -i injected_flows.csv
 * [Steg-in-the-wild](https://github.com/lucacav/steg-in-the-wild): a curated list of real-world threats, attacks and malware leveraging information hiding, covert channels and steganography.
 * [Malware - Fileless Command Lines](https://github.com/chenerlich/FCL): a repository containing malicious command-lines and malware execution processes.
 
+## pcap Traces
+* [CAIDA IPv6 traffic traces](https://www.caida.org/data/passive/passive_dataset.xml): traffic dumps collected by CAIDA to conduct experiments.
+
 # Acknowledgement 
 
 This work has been supported by EU Project [SIMARGL](https://simargl.eu) - Secure Intelligent Methods for Advanced Recognition of Malware and Stegomalware, Grant Agreement No 833042.
