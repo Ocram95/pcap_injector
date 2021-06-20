@@ -118,7 +118,7 @@ def create_dict_attack(flow, attack, proto):
 	return tmp_dict
 
 def inject(pcap, output, attack_dict):
-	print("Reading input pcap. This might takes few minutes...")
+	print("Reading input pcap. This might take few minutes...")
 	pkts = rdpcap(pcap)
 	wire_len = []
 	index = 0
@@ -142,9 +142,11 @@ def inject(pcap, output, attack_dict):
 						elif targeted_field == 'TC':
 							pkts[x][IPv6].tc = int(attack['attack'][attack['counter']],2)
 						elif targeted_field == 'HL':
-							if attack['attack'][attack['counter']] == 0:
+							if attack['attack'][attack['counter']] == "0":
+								#print(0)
 								pkts[x][IPv6].hlim = 10
 							else:
+								#print(1)
 								pkts[x][IPv6].hlim = 250
 						attack['counter'] += 1
 

@@ -84,7 +84,7 @@ def extract(pcap, attack_dict):
 							attack['extracted'] += '{0:08b}'.format(pkts[x][IPv6].tc)
 							attack['counter'] += 8
 						elif targeted_field == "HL":
-							if pkts[x][IPv6].hlim == 255:
+							if pkts[x][IPv6].hlim == 250:
 								attack['extracted'] += '1'
 							elif pkts[x][IPv6].hlim == 10:
 								attack['extracted'] += '0'
