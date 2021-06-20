@@ -99,7 +99,7 @@ def find_flows(pcap_to_read, number_packets):
 	return df_final.loc[df_final['#pkts'] >= number_packets]
 
 def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, targeted_field, attack_in_chunks, attack):
-	print("Reading input pcap. This might takes few minutes...")
+	print("Reading input pcap. This might take few minutes...")
 	pkts = rdpcap(pcap)
 	secret_index = 0
 	wire_len = []
