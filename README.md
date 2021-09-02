@@ -91,7 +91,7 @@ python3 extractor_bulk.py -r attacks.txt_pcap_example.pcap -i injected_flows.csv
 
 # Related Work
 
-M. Zuppelli, L. Caviglione, [PcapStego: A Tool for Generating Traffic Traces for Experimenting with Network Covert Channels] (https://dl.acm.org/doi/10.1145/3465481.3470067), in Proceedings of the 16th International Conference on Availability, Reliability and Security (ARES 2021), Article 95, pp. 1–8, Aug. 2021.
+M. Zuppelli, L. Caviglione, [PcapStego: A Tool for Generating Traffic Traces for Experimenting with Network Covert Channels](https://dl.acm.org/doi/10.1145/3465481.3470067), in Proceedings of the 16th International Conference on Availability, Reliability and Security (ARES 2021), Article 95, pp. 1–8, Aug. 2021.
 
 # Further Reading
 
