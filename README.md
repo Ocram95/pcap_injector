@@ -1,4 +1,4 @@
-# pcapSteg
+# pcapStego
 
 pcapStego is a simple CLI tool for creating IPv6 network covert channels within a .pcap file. The modified .pcap can be then used for simulations, create datasets or be lively replayed on a network via tools like [Tcpreplay](https://tcpreplay.appneta.com). 
 
