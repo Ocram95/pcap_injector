@@ -13,7 +13,8 @@ import base64
 FIELD_LENGTH = {
 	"FL": 20,
 	"TC": 8,
-	"HL": 1
+	"HL": 1,
+	"TIMING": 1
 }
 
 def process_command_line(argv):
@@ -29,7 +30,7 @@ def process_command_line(argv):
 	parser.add_option(
 		'-f',
 		'--field',
-		help='Specify the field to inspect (i.e., FL, TC, HL).',
+		help='Specify the field to inspect (i.e., FL, TC, HL, TIMING).',
 		action='store',
 		type='string',
 		dest='field')
@@ -107,6 +108,8 @@ def extract_packets(pcap, source, destination, src_port, dst_port, protocol, tar
 	pkts = rdpcap(pcap)
 	secret_index = 0
 	secret_extracted = ''
+	delta = 1
+	prev_time_packet = 0
 	print("Extracting...")
 	for x in range(len(pkts)):
 		if secret_index < number_of_packets:
@@ -117,11 +120,20 @@ def extract_packets(pcap, source, destination, src_port, dst_port, protocol, tar
 				elif targeted_field == "TC":
 					secret_extracted += '{0:08b}'.format(pkts[x][IPv6].tc)
 				elif targeted_field == "HL":
-					if pkts[x][IPv6].hlim == 255:
+					if pkts[x][IPv6].hlim == 250:
 						secret_extracted += '1'
 					elif pkts[x][IPv6].hlim == 10:
 						secret_extracted += '0'
+				elif targeted_field == "TIMING":
+					if pkts[x].time - prev_time_packet >= delta:
+						secret_extracted += '1'
+					else:
+						secret_extracted += '0'
+					prev_time_packet = pkts[x].time
 				secret_index += 1
+	#If TIMING CC, the first bit is reserved as a signature, skip it 
+	if targeted_field == "TIMING":
+		secret_extracted = secret_extracted[1:]
 	#Creation of 8 bit chunks to correctly interpret characters
 	secret_in_chunks = list((secret_extracted[0+i:8+i] for i in range(0, len(secret_extracted), 8)))
 	secret_string = ''
@@ -154,7 +166,7 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
 					secret_extracted += '{0:08b}'.format(pkts[x][IPv6].tc)
 					secret_index += 8
 				elif targeted_field == "HL":
-					if pkts[x][IPv6].hlim == 255:
+					if pkts[x][IPv6].hlim == 250:
 						secret_extracted += '1'
 					elif pkts[x][IPv6].hlim == 10:
 						secret_extracted += '0'

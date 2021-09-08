@@ -14,7 +14,8 @@ import csv
 FIELD_LENGTH = {
 	"FL": 20,
 	"TC": 8,
-	"HL": 1
+	"HL": 1,
+	"TIMING": 1
 }
 
 def process_command_line(argv):
@@ -30,7 +31,7 @@ def process_command_line(argv):
 	parser.add_option(
 		'-f',
 		'--field',
-		help='Specify the field to exploit to contain the payload (i.e., FL, TC, HL).',
+		help='Specify the field to exploit to contain the payload (i.e., FL, TC, HL, TIMING).',
 		action='store',
 		type='string',
 		dest='field')
@@ -58,8 +59,9 @@ def process_command_line(argv):
 	return settings, args
 
 
-def read_attack(attack_to_read, dim_field):
+def read_attack(attack_to_read, field):
 	print("Reading the attack...")
+	dim_field = FIELD_LENGTH[field]
 	if attack_to_read.endswith('.txt'):
 		file = open(attack_to_read, "r")
 		file_in_string = file.read()
@@ -71,6 +73,14 @@ def read_attack(attack_to_read, dim_field):
 	attack_in_bits = ''.join(format(ord(bit), '08b') for bit in file_in_string)
 	#Division in chunks of 'dim_field' size
 	attack_in_chunks = [attack_in_bits[i:i+dim_field] for i in range(0, len(attack_in_bits), dim_field)]
+	
+	#If TIMING i need at least one packet before the secret to understand if the secret
+	#starts with 1 or 0
+	if field == "TIMING":
+		attack_in_bits_tmp = '0' + attack_in_bits
+		attack_in_bits = attack_in_bits_tmp
+		attack_in_chunks.insert(0, '0')
+
 	print("Number of packets needed: " + str(len(attack_in_chunks)))
 	print("Number of bits needed: " + str(len(attack_in_bits)))
 	return attack_in_chunks, str(len(attack_in_chunks)), str(len(attack_in_bits))
@@ -104,12 +114,19 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 	secret_index = 0
 	wire_len = []
 	index = 0
+	#Delay and number of delays to add for timing CC
+	delta = 1
+	n = 0
+
+	resulting_pcap_file = str(targeted_field) + "_a=" + str(attack).replace(" ", "_") + "_" + str(pcap)
+
 	print("Injecting...")
 	for x in range(len(pkts)):
 		wire_len.append(pkts[x].wirelen)
-		if secret_index < len(attack_in_chunks):
-			#Search for the correct flow
-			if source == pkts[x][IPv6].src and destination == pkts[x][IPv6].dst and flow_label == pkts[x][IPv6].fl and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x].nh:
+		#Search for the correct flow
+		if source == pkts[x][IPv6].src and destination == pkts[x][IPv6].dst and flow_label == pkts[x][IPv6].fl and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x].nh:
+			#If there is still something to inject
+			if secret_index < len(attack_in_chunks):
 				if targeted_field == "FL":
 					pkts[x][IPv6].fl = int(attack_in_chunks[secret_index],2)
 				elif targeted_field == "TC":
@@ -119,13 +136,17 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 						pkts[x][IPv6].hlim = 10
 					else:
 						pkts[x][IPv6].hlim = 250
+				elif targeted_field == "TIMING":
+					if int(attack_in_chunks[secret_index], 2) == 1:
+						n += 1
 				secret_index += 1
+			pkts[x].time += n * delta
 		pkts[x].wirelen = wire_len[index]
 		index += 1
 		#WARNING: check if the linktype is what is needed
-		wrpcap(str(targeted_field) + "_a=" + str(attack).replace(" ", "_") + "_" + str(pcap), pkts[x], append=True, linktype=101)
+		wrpcap(resulting_pcap_file, pkts[x], append=True, linktype=101)
 	print("Injection succesfully finished!")
-	return pkts, wire_len
+	return resulting_pcap_file
 
 def flow_selection(flows, number):
 	#TODO: extend to more protocols?
@@ -152,9 +173,19 @@ def write_to_csv(csv_file_name, filename, attack, field, src, dst, p_src, p_dst,
 
 		writer.writerow([filename, attack, field, src, dst, p_src, p_dst, proto, lengthb, lengthp])
 
+def reorder_timing_pcap_file(pcap_to_reorder):
+	print("Reordering pcap file...")
+	pcap_reordered = "reordered_" + str(pcap_to_reorder)
+	reorder_pcap_file = "reordercap " + pcap_to_reorder + " " + pcap_reordered
+	process = subprocess.Popen(reorder_pcap_file, shell=True, stdout=subprocess.PIPE)
+	process.wait()
+	delete_pcap_file = "rm " + pcap_to_reorder
+	process = subprocess.Popen(delete_pcap_file, shell=True, stdout=subprocess.PIPE)
+	process.wait()
+
 
 settings, args = process_command_line(sys.argv)
-attack_in_chunks, lengthp, lengthb = read_attack(settings.attack, FIELD_LENGTH[settings.field])
+attack_in_chunks, lengthp, lengthb = read_attack(settings.attack, settings.field)
 flows = find_flows(settings.pcap, len(attack_in_chunks))
 if len(flows) > 0:
 	print('-' * 25)
@@ -185,8 +216,10 @@ if len(flows) > 0:
 			print("This operation is not supported!")
 	print('-' * 25)
 	print("Wireshark filter: ipv6.src == " + str(source) + " and ipv6.dst == " + str(destination) + " and ipv6.flow == " + str(flow_label) + " and tcp.srcport == " + str(src_port) + " and tcp.dstport == " + str(dst_port))
-	injected_pcap, wire_len = inject(settings.pcap, source, destination, flow_label, src_port, dst_port, protocol, settings.field, attack_in_chunks, settings.attack)
+	resulting_pcap_file = inject(settings.pcap, source, destination, flow_label, src_port, dst_port, protocol, settings.field, attack_in_chunks, settings.attack)
 	write_to_csv('injected_flows.csv', settings.pcap, settings.attack, settings.field, source, destination, src_port, dst_port, protocol, lengthp, lengthb)
+	if settings.field == "TIMING":
+		reorder_timing_pcap_file(resulting_pcap_file)
 else:
 	print("No conversations with enough packets are found in this pcap!")
 

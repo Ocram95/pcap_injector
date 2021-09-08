@@ -57,12 +57,14 @@ def create_dict_attack(injected_flows):
 			tmp_dict['blength'] = int(row[7])
 			tmp_dict['counter'] = 0
 			tmp_dict['extracted'] = ''
+			tmp_dict['prev_time_packet'] = 0
 			list_of_dict.append(tmp_dict)
 	
 	return list_of_dict
 
 def extract(pcap, attack_dict):
 	pkts = rdpcap(pcap)
+	delta = 1
 	for x in range(len(pkts)):
 		if pkts[x][IPv6].nh != 58 and pkts[x][IPv6].nh != 44 and pkts[x][IPv6].nh != 59:
 			p_source, p_destination, p_psrc, p_pdst, p_nxt = pkts[x][IPv6].src, pkts[x][IPv6].dst, pkts[x].sport, pkts[x].dport, pkts[x][IPv6].nh
@@ -89,10 +91,21 @@ def extract(pcap, attack_dict):
 							elif pkts[x][IPv6].hlim == 10:
 								attack['extracted'] += '0'
 							attack['counter'] += 1
+						elif targeted_field == "TIMING":
+							if pkts[x].time - attack['prev_time_packet'] >= delta:
+								attack['extracted'] += '1'
+							else:
+								attack['extracted'] += '0'
+							attack['prev_time_packet'] = pkts[x].time
+							attack['counter'] += 1
 
 	extracted_attacks_in_chunks = []
 	for attack in attack_dict:
-		extracted_attacks_in_chunks.append((attack['target_field'],list((attack['extracted'][0+i:8+i] for i in range(0, len(attack['extracted']), 8)))))
+		#IF TIMING CC, exclude the first bit, used as a signature
+		if attack['target_field'] == "TIMING":
+			extracted_attacks_in_chunks.append((attack['target_field'],list((attack['extracted'][1:][0+i:8+i] for i in range(0, len(attack['extracted']) - 1, 8)))))
+		else:
+			extracted_attacks_in_chunks.append((attack['target_field'],list((attack['extracted'][0+i:8+i] for i in range(0, len(attack['extracted']), 8)))))
 	extracted_attacks = []
 	for attack in extracted_attacks_in_chunks:
 		secret_string = ''

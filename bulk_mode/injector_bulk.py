@@ -54,7 +54,13 @@ def read_attack(attack_to_read):
 				dim_field = 8
 			elif field == 'HL':
 				dim_field = 1
+			elif field == "TIMING":
+				dim_field = 1
 			attack_in_chunks = [attack_in_bits[i:i+dim_field] for i in range(0, len(attack_in_bits), dim_field)]
+			if field == "TIMING":
+				attack_in_bits_tmp = '0' + attack_in_bits
+				attack_in_bits = attack_in_bits_tmp
+				attack_in_chunks.insert(0, '0')
 			list_of_attacks.append((field, attack_in_chunks))
 			line = fp.readline()
 	return list_of_attacks
@@ -114,6 +120,7 @@ def create_dict_attack(flow, attack, proto):
 	tmp_dict['target_field'] = attack[0]
 	tmp_dict['attack'] = attack[1]
 	tmp_dict['counter'] = 0
+	tmp_dict['n-delay'] = 0
 	#tmp_dict['injected'] = False
 	return tmp_dict
 
@@ -122,6 +129,11 @@ def inject(pcap, output, attack_dict):
 	pkts = rdpcap(pcap)
 	wire_len = []
 	index = 0
+
+	delta = 1
+
+	resulting_pcap_file = output + '_' + str(pcap)
+
 	print("Injecting...")
 	for x in range(len(pkts)):
 		wire_len.append(pkts[x].wirelen)
@@ -143,17 +155,19 @@ def inject(pcap, output, attack_dict):
 							pkts[x][IPv6].tc = int(attack['attack'][attack['counter']],2)
 						elif targeted_field == 'HL':
 							if attack['attack'][attack['counter']] == "0":
-								#print(0)
 								pkts[x][IPv6].hlim = 10
 							else:
-								#print(1)
 								pkts[x][IPv6].hlim = 250
+						elif targeted_field == 'TIMING':
+							if attack['attack'][attack['counter']] == "1":
+								attack['n-delay'] += 1
 						attack['counter'] += 1
-
+					pkts[x].time += attack['n-delay'] * delta
 		pkts[x].wirelen = wire_len[index]
 		index += 1
-		wrpcap(output + '_' + str(pcap), pkts[x], append=True, linktype=101)
+		wrpcap(resulting_pcap_file, pkts[x], append=True, linktype=101)
 	print("Injection succesfully finished!")
+	return resulting_pcap_file
 
 def write_wireshark_filters(attacks_and_flows):
 	print("Wireshark filters:")
@@ -172,11 +186,21 @@ def write_to_csv(csv_file_name, attacks_and_flows):
 				bit_lenght += len(l)
 			writer.writerow([x['target_field'], x['src'], x['dst'], x['psrc'], x['pdst'], x['nxt'], len(x['attack']), bit_lenght])
 
+def reorder_timing_pcap_file(pcap_to_reorder):
+	print("Reordering pcap file...")
+	pcap_reordered = "reordered_" + str(pcap_to_reorder)
+	reorder_pcap_file = "reordercap " + pcap_to_reorder + " " + pcap_reordered
+	process = subprocess.Popen(reorder_pcap_file, shell=True, stdout=subprocess.PIPE)
+	process.wait()
+	delete_pcap_file = "rm " + pcap_to_reorder
+	process = subprocess.Popen(delete_pcap_file, shell=True, stdout=subprocess.PIPE)
+	process.wait()
 
 settings, args = process_command_line(sys.argv)
 list_of_attacks = read_attack(settings.attack)
 attacks_and_flows = find_flows(settings.pcap, list_of_attacks)
-inject(settings.pcap, settings.attack, attacks_and_flows)
+resulting_pcap_file = inject(settings.pcap, settings.attack, attacks_and_flows)
+reorder_timing_pcap_file(resulting_pcap_file)
 write_to_csv('injected_flows.csv', attacks_and_flows)
 write_wireshark_filters(attacks_and_flows)
 
