@@ -162,7 +162,13 @@ def inject(pcap, output, attack_dict):
 							if attack['attack'][attack['counter']] == "1":
 								attack['n-delay'] += 1
 						attack['counter'] += 1
+					# Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
+					# the time change according to n and delta.
 					pkts[x].time += attack['n-delay'] * delta
+				# Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
+				# of received packet.
+				# if p_flow == a_flow and p_source == a_destination and p_destination == a_source and p_psrc == a_pdst and p_pdst == a_src and p_nxt == a_nxt:
+				# 	pkts[x].time += attack['n-delay'] * delta
 		pkts[x].wirelen = wire_len[index]
 		index += 1
 		wrpcap(resulting_pcap_file, pkts[x], append=True, linktype=101)

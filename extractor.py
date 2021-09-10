@@ -98,7 +98,7 @@ def find_flows(pcap_to_read, number_of_packets):
 	#Adding INDEX column name
 	df.index.name = "INDEX"
 	#Return flows which contains at leats 'number_of_packets' packets
-	df_final = df_tcp.append(df_udp)
+	df_final = df_tcp.append(df_udp, ignore_index=True)
 	df_final = df_final[['ipv6.src', 'ipv6.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', 'ipv6.nxt', '#pkts']]
 	df_final = df_final.fillna('-')
 	return df_final.loc[df_final['#pkts'] >= number_of_packets]
@@ -148,6 +148,8 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
 	pkts = rdpcap(pcap)
 	secret_index = 0
 	secret_extracted = ''
+	delta = 1
+	prev_time_packet = 0
 	print("Extracting...")
 	for x in range(len(pkts)):
 		if secret_index < number_of_bits:
@@ -171,6 +173,16 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
 					elif pkts[x][IPv6].hlim == 10:
 						secret_extracted += '0'
 					secret_index += 1
+				elif targeted_field == "TIMING":
+					if pkts[x].time - prev_time_packet >= delta:
+						secret_extracted += '1'
+					else:
+						secret_extracted += '0'
+					prev_time_packet = pkts[x].time
+					secret_index += 1
+	#If TIMING CC, the first bit is reserved as a signature, skip it 
+	if targeted_field == "TIMING":
+		secret_extracted = secret_extracted[1:]
 	#Creation of 8 bit chunks to correctly interpret characters
 	secret_in_chunks = list((secret_extracted[0+i:8+i] for i in range(0, len(secret_extracted), 8)))
 	secret_string = ''
@@ -202,8 +214,8 @@ flows = find_flows(settings.pcap, settings.packets)
 if len(flows) > 0:
 	print('-' * 25)
 	print("CONVERSATIONS FOUND")
-	print(flows.tail(50))
-	print("Some conversations are omitted.")
+	print(flows.head(50))
+	print("Only the first 50 conversations are shown.")
 	print('-' * 25)
 	while True:
 		operation = input("Choose the flow to inspect: ")

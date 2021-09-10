@@ -55,7 +55,6 @@ def process_command_line(argv):
 	if not settings.attack:
 		raise ValueError("An attack must be specified.")
 
-
 	return settings, args
 
 
@@ -103,7 +102,7 @@ def find_flows(pcap_to_read, number_packets):
 	#Adding INDEX column name
 	df.index.name = "INDEX"
 	#Return flows which contains at leats 'number_of_packets' packets
-	df_final = df_tcp.append(df_udp)
+	df_final = df_tcp.append(df_udp, ignore_index=True)
 	df_final = df_final[['ipv6.flow', 'ipv6.src', 'ipv6.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', 'ipv6.nxt', '#pkts']]
 	df_final = df_final.fillna('-')
 	return df_final.loc[df_final['#pkts'] >= number_packets]
@@ -140,7 +139,13 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 					if int(attack_in_chunks[secret_index], 2) == 1:
 						n += 1
 				secret_index += 1
+			#Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
+			#the time change according to n and delta.
 			pkts[x].time += n * delta
+		#Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
+		#of received packet.
+		# if source == pkts[x][IPv6].dst and destination == pkts[x][IPv6].src and flow_label == pkts[x][IPv6].fl and src_port == pkts[x].dport and dst_port == pkts[x].sport and protocol == pkts[x].nh:
+		# 	pkts[x].time += n * delta
 		pkts[x].wirelen = wire_len[index]
 		index += 1
 		#WARNING: check if the linktype is what is needed
@@ -190,7 +195,8 @@ flows = find_flows(settings.pcap, len(attack_in_chunks))
 if len(flows) > 0:
 	print('-' * 25)
 	print("CONVERSATIONS FOUND")
-	print(flows.tail(50))
+	print(flows.head(50))
+	print("Only the first 50 conversations are shown.")
 	print('-' * 25)
 	while True:
 		operation = input("Choose the flow by its index (leave it blank for the first flow or 'r' for a random choice): ")
