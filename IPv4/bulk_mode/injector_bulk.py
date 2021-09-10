@@ -5,7 +5,7 @@ import pandas as pd
 from scapy.utils import rdpcap
 from scapy.utils import wrpcap
 from scapy.all import *
-from scapy.layers.inet6 import IPv6
+from scapy.layers.inet import IP
 import random
 import base64
 import csv
@@ -48,12 +48,12 @@ def read_attack(attack_to_read):
 		while line:
 			field, separator, attack = line.strip().rpartition(", ")
 			attack_in_bits = ''.join(format(ord(bit), '08b') for bit in attack)
-			if field == 'FL':
-				dim_field = 20
-			elif field == 'TC':
+			if field == 'TOS':
 				dim_field = 8
-			elif field == 'HL':
+			elif field == 'TTL':
 				dim_field = 1
+			elif field == 'ID':
+				dim_field = 16
 			elif field == "TIMING":
 				dim_field = 1
 			attack_in_chunks = [attack_in_bits[i:i+dim_field] for i in range(0, len(attack_in_bits), dim_field)]
@@ -68,13 +68,13 @@ def read_attack(attack_to_read):
 def find_flows(pcap_to_read, list_of_attacks):
 	#Creation of csv file where each line is composed of three-tuple src and dst for each packet 
 	print("Creating tmp files...")
-	create_tmp_csv = "tshark -r " + pcap_to_read + " -T fields -e ipv6.flow -e ipv6.src -e ipv6.dst -e tcp.srcport -e tcp.dstport -e udp.srcport -e udp.dstport -e ipv6.nxt -E header=y -E separator=, > tmp.csv"
+	create_tmp_csv = "tshark -r " + pcap_to_read + " -T fields -e ip.src -e ip.dst -e tcp.srcport -e tcp.dstport -e udp.srcport -e udp.dstport -e ip.proto -E header=y -E separator=, > tmp.csv"
 	process = subprocess.Popen(create_tmp_csv, shell=True, stdout=subprocess.PIPE)
 	process.wait()
 	#Count of packets that compose each flow, grouping by src, dst and fl
 	df = pd.read_csv('tmp.csv')
-	df_tcp = df.groupby(['ipv6.flow', 'ipv6.src', 'ipv6.dst', 'tcp.srcport', 'tcp.dstport', 'ipv6.nxt']).size().to_frame('#pkts').reset_index()
-	df_udp = df.groupby(['ipv6.flow', 'ipv6.src', 'ipv6.dst', 'udp.srcport', 'udp.dstport', 'ipv6.nxt']).size().to_frame('#pkts').reset_index()
+	df_tcp = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'ip.proto']).size().to_frame('#pkts').reset_index()
+	df_udp = df.groupby(['ip.src', 'ip.dst', 'udp.srcport', 'udp.dstport', 'ip.proto']).size().to_frame('#pkts').reset_index()
 	#Deleting of csv file
 	delete_tmp_csv = "rm tmp.csv"
 	process = subprocess.Popen(delete_tmp_csv, shell=True, stdout=subprocess.PIPE)
@@ -84,7 +84,7 @@ def find_flows(pcap_to_read, list_of_attacks):
 	df.index.name = "INDEX"
 	#Return flows which contains at leats 'number_of_packets' packets
 	df_final = pd.concat([df_tcp, df_udp]).reset_index(drop=True)
-	df_final = df_final[['ipv6.flow', 'ipv6.src', 'ipv6.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', 'ipv6.nxt', '#pkts']]
+	df_final = df_final[['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', 'ip.proto', '#pkts']]
 	df_final = df_final.fillna('-')
 
 	list_of_dict = []
@@ -107,16 +107,15 @@ def find_flows(pcap_to_read, list_of_attacks):
 
 def create_dict_attack(flow, attack, proto):
 	tmp_dict = {}
-	tmp_dict['flow'] = int(flow['ipv6.flow'], 0)
-	tmp_dict['src'] = str(flow['ipv6.src'])
-	tmp_dict['dst'] = str(flow['ipv6.dst'])
+	tmp_dict['src'] = str(flow['ip.src'])
+	tmp_dict['dst'] = str(flow['ip.dst'])
 	if proto == 'tcp':
 		tmp_dict['psrc'] = int(flow['tcp.srcport'])
 		tmp_dict['pdst'] = int(flow['tcp.dstport'])
 	elif proto == 'udp':
 		tmp_dict['psrc'] = int(flow['udp.srcport'])
 		tmp_dict['pdst'] = int(flow['udp.dstport'])
-	tmp_dict['nxt'] = int(flow['ipv6.nxt'])
+	tmp_dict['proto'] = int(flow['ip.proto'])
 	tmp_dict['target_field'] = attack[0]
 	tmp_dict['attack'] = attack[1]
 	tmp_dict['counter'] = 0
@@ -138,47 +137,45 @@ def inject(pcap, output, attack_dict):
 	for x in range(len(pkts)):
 		wire_len.append(pkts[x].wirelen)
 		#Packet info
-		#Excluding ICMPv6 (58), fragmented packets (44) and no next header (59) for src/dst problems
-		if pkts[x][IPv6].nh != 58 and pkts[x][IPv6].nh != 44 and pkts[x][IPv6].nh != 59:
-			p_flow, p_source, p_destination, p_psrc, p_pdst, p_nxt = pkts[x][IPv6].fl,  pkts[x][IPv6].src, pkts[x][IPv6].dst, pkts[x].sport, pkts[x].dport, pkts[x][IPv6].nh
-			for attack in attack_dict:
-				#Attack info
-				a_flow, a_source, a_destination, a_psrc, a_pdst, a_nxt = attack['flow'], attack['src'], attack['dst'], attack['psrc'], attack['pdst'], attack['nxt']
-				#Check if the x-th packet needs to be injected
-				if p_flow == a_flow and p_source == a_source and p_destination == a_destination and p_psrc == a_psrc and p_pdst == a_pdst and p_nxt == a_nxt:
-					#if attack['injected'] == False:
-					if attack['counter'] < len(attack['attack']):
-						targeted_field = attack['target_field']
-						if targeted_field == 'FL':
-							pkts[x][IPv6].fl = int(attack['attack'][attack['counter']],2)
-						elif targeted_field == 'TC':
-							pkts[x][IPv6].tc = int(attack['attack'][attack['counter']],2)
-						elif targeted_field == 'HL':
-							if attack['attack'][attack['counter']] == "0":
-								pkts[x][IPv6].hlim = 10
-							else:
-								pkts[x][IPv6].hlim = 250
-						elif targeted_field == 'TIMING':
-							if attack['attack'][attack['counter']] == "1":
-								attack['n-delay'] += 1
-						attack['counter'] += 1
-					# Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
-					# the time change according to n and delta.
-					pkts[x].time += attack['n-delay'] * delta
-				# Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
-				# of received packet.
-				# if p_flow == a_flow and p_source == a_destination and p_destination == a_source and p_psrc == a_pdst and p_pdst == a_src and p_nxt == a_nxt:
-				# 	pkts[x].time += attack['n-delay'] * delta
+		p_source, p_destination, p_psrc, p_pdst, p_proto = pkts[x][IP].src, pkts[x][IP].dst, pkts[x].sport, pkts[x].dport, pkts[x][IP].proto
+		for attack in attack_dict:
+			#Attack info
+			a_source, a_destination, a_psrc, a_pdst, a_proto = attack['src'], attack['dst'], attack['psrc'], attack['pdst'], attack['proto']
+			#Check if the x-th packet needs to be injected
+			if p_source == a_source and p_destination == a_destination and p_psrc == a_psrc and p_pdst == a_pdst and p_proto == a_proto:
+				#if attack['injected'] == False:
+				if attack['counter'] < len(attack['attack']):
+					targeted_field = attack['target_field']
+					if targeted_field == 'TOS':
+						pkts[x][IP].tos = int(attack['attack'][attack['counter']],2)
+					elif targeted_field == 'ID':
+						pkts[x][IP].id = int(attack['attack'][attack['counter']],2)
+					elif targeted_field == 'TTL':
+						if attack['attack'][attack['counter']] == "0":
+							pkts[x][IP].ttl = 10
+						else:
+							pkts[x][IP].ttl = 250
+					elif targeted_field == 'TIMING':
+						if attack['attack'][attack['counter']] == "1":
+							attack['n-delay'] += 1
+					attack['counter'] += 1
+				# Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
+				# the time change according to n and delta.
+				pkts[x].time += attack['n-delay'] * delta
+			# Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
+			# of received packet.
+			# if p_flow == a_flow and p_source == a_destination and p_destination == a_source and p_psrc == a_pdst and p_pdst == a_src and p_proto == a_proto:
+			# 	pkts[x].time += attack['n-delay'] * delta
 		pkts[x].wirelen = wire_len[index]
 		index += 1
-		wrpcap(resulting_pcap_file, pkts[x], append=True, linktype=101)
+		wrpcap(resulting_pcap_file, pkts[x], append=True, linktype=1)
 	print("Injection succesfully finished!")
 	return resulting_pcap_file
 
 def write_wireshark_filters(attacks_and_flows):
 	print("Wireshark filters:")
 	for x in attacks_and_flows:
-		print('ipv6.src == ' + str(x['src']) + ' and ipv6.dst == ' + str(x['dst']) + ' and tcp.srcport == ' + str(x['psrc']) + ' and tcp.dstport == ' + str(x['pdst']) + ' and ipv6.nxt == ' + str(x['nxt']))
+		print('ip.src == ' + str(x['src']) + ' and ip.dst == ' + str(x['dst']) + ' and tcp.srcport == ' + str(x['psrc']) + ' and tcp.dstport == ' + str(x['pdst']) + ' and ip.proto == ' + str(x['proto']))
 
 def write_to_csv(csv_file_name, attacks_and_flows):
 	csv_exists = os.path.isfile(csv_file_name)
@@ -190,7 +187,7 @@ def write_to_csv(csv_file_name, attacks_and_flows):
 			bit_lenght = 0
 			for l in x['attack']:
 				bit_lenght += len(l)
-			writer.writerow([x['target_field'], x['src'], x['dst'], x['psrc'], x['pdst'], x['nxt'], len(x['attack']), bit_lenght])
+			writer.writerow([x['target_field'], x['src'], x['dst'], x['psrc'], x['pdst'], x['proto'], len(x['attack']), bit_lenght])
 
 def reorder_timing_pcap_file(pcap_to_reorder):
 	print("Reordering pcap file...")

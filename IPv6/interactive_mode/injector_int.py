@@ -20,29 +20,9 @@ FIELD_LENGTH = {
 
 def process_command_line(argv):
 	parser = optparse.OptionParser()
-	parser.add_option(
-		'-r',
-		'--pcap',
-		help='Specify the pcap to inject.',
-		action='store',
-		type='string',
-		dest='pcap')
-
-	parser.add_option(
-		'-f',
-		'--field',
-		help='Specify the field to exploit to contain the payload (i.e., FL, TC, HL, TIMING).',
-		action='store',
-		type='string',
-		dest='field')
-
-	parser.add_option(
-		'-a',
-		'--attack',
-		help='Specify the attack (i.e., text file, string).',
-		action='store',
-		type='string',
-		dest='attack')
+	parser.add_option('-r', '--pcap', help='Specify the pcap to inject.', action='store', type='string',dest='pcap')
+	parser.add_option('-f', '--field', help='Specify the field to exploit to contain the payload (i.e., FL, TC, HL, TIMING).', action='store', type='string', dest='field')
+	parser.add_option('-a', '--attack', help='Specify the attack (i.e., text file, string).', action='store', type='string', dest='attack')
 
 	settings, args = parser.parse_args(argv)
 		
@@ -154,7 +134,6 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 	return resulting_pcap_file
 
 def flow_selection(flows, number):
-	#TODO: extend to more protocols?
 	source = flows.loc[number]['ipv6.src']
 	destination = flows.loc[number]['ipv6.dst']
 	flow_label_extended = flows.loc[number]['ipv6.flow']					#0x000f92c1
@@ -196,7 +175,7 @@ if len(flows) > 0:
 	print('-' * 25)
 	print("CONVERSATIONS FOUND")
 	print(flows.head(50))
-	print("Only the first 50 conversations are shown.")
+	print("Only the first 50 conversations are shown (if present).")
 	print('-' * 25)
 	while True:
 		operation = input("Choose the flow by its index (leave it blank for the first flow or 'r' for a random choice): ")

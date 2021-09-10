@@ -5,62 +5,25 @@ import pandas as pd
 from scapy.utils import rdpcap
 from scapy.utils import wrpcap
 from scapy.all import *
-from scapy.layers.inet6 import IPv6
+from scapy.layers.inet import IP
 import random
 import base64
 
 #Field and length of them supported
 FIELD_LENGTH = {
-	"FL": 20,
-	"TC": 8,
-	"HL": 1,
+	"TOS": 8,
+	"TTL": 1,
+	"ID": 16,
 	"TIMING": 1
 }
 
 def process_command_line(argv):
 	parser = optparse.OptionParser()
-	parser.add_option(
-		'-r',
-		'--pcap',
-		help='Specify the pcap to parse.',
-		action='store',
-		type='string',
-		dest='pcap')
-
-	parser.add_option(
-		'-f',
-		'--field',
-		help='Specify the field to inspect (i.e., FL, TC, HL, TIMING).',
-		action='store',
-		type='string',
-		dest='field')
-
-	parser.add_option(
-		'-p',
-		'--packets',
-		help='Specify the number of packets to extract.',
-		action='store',
-		default = 0,
-		type='int',
-		dest='packets')
-
-	parser.add_option(
-		'-b',
-		'--bits',
-		help='Specify the number of bits to extract.',
-		action='store',
-		default = 0,
-		type='int',
-		dest='bits')
-
-	parser.add_option(
-		'-i',
-		'--image',
-		help='Specify to extract an image.',
-		action='store',
-		default = 'n',
-		type='string',
-		dest='image')
+	parser.add_option('-r', '--pcap', help='Specify the pcap to parse.', action='store', type='string', dest='pcap')
+	parser.add_option('-f', '--field', help='Specify the field to inspect (i.e., TOS, TTL, ID, TIMING).', action='store', type='string', dest='field')
+	parser.add_option('-p', '--packets', help='Specify the number of packets to extract.', action='store', default = 0, type='int', dest='packets')
+	parser.add_option('-b', '--bits', help='Specify the number of bits to extract.', action='store', default = 0, type='int', dest='bits')
+	parser.add_option('-i', '--image', help='Specify to extract an image.', action='store', default = 'n', type='string', dest='image')
 
 	settings, args = parser.parse_args(argv)
 		
@@ -82,14 +45,12 @@ def process_command_line(argv):
 def find_flows(pcap_to_read, number_of_packets):
 	#Creation of csv file where each line is composed of three-tuple src and dst for each packet 
 	print("Creating tmp files...")
-	create_tmp_csv = "tshark -r " + pcap_to_read + " -T fields -e ipv6.src -e ipv6.dst -e tcp.srcport -e tcp.dstport -e udp.srcport -e udp.dstport -e ipv6.nxt -E header=y -E separator=, > tmp.csv"
+	create_tmp_csv = "tshark -r " + pcap_to_read + " -T fields -e ip.src -e ip.dst -e tcp.srcport -e tcp.dstport -e udp.srcport -e udp.dstport -e ip.proto -E header=y -E separator=, > tmp.csv"
 	process = subprocess.Popen(create_tmp_csv, shell=True, stdout=subprocess.PIPE)
 	process.wait()
-	#Count of packets that compose each flow (fl should not be considered: consider the case 
-	#where fl is injected!)
 	df = pd.read_csv('tmp.csv')
-	df_tcp = df.groupby(['ipv6.src', 'ipv6.dst', 'tcp.srcport', 'tcp.dstport', 'ipv6.nxt']).size().to_frame('#pkts').reset_index()
-	df_udp = df.groupby(['ipv6.src', 'ipv6.dst', 'udp.srcport', 'udp.dstport', 'ipv6.nxt']).size().to_frame('#pkts').reset_index()
+	df_tcp = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'ip.proto']).size().to_frame('#pkts').reset_index()
+	df_udp = df.groupby(['ip.src', 'ip.dst', 'udp.srcport', 'udp.dstport', 'ip.proto']).size().to_frame('#pkts').reset_index()
 	#Deleting of csv file
 	delete_tmp_csv = "rm tmp.csv"
 	process = subprocess.Popen(delete_tmp_csv, shell=True, stdout=subprocess.PIPE)
@@ -99,7 +60,7 @@ def find_flows(pcap_to_read, number_of_packets):
 	df.index.name = "INDEX"
 	#Return flows which contains at leats 'number_of_packets' packets
 	df_final = df_tcp.append(df_udp, ignore_index=True)
-	df_final = df_final[['ipv6.src', 'ipv6.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', 'ipv6.nxt', '#pkts']]
+	df_final = df_final[['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'udp.srcport', 'udp.dstport', 'ip.proto', '#pkts']]
 	df_final = df_final.fillna('-')
 	return df_final.loc[df_final['#pkts'] >= number_of_packets]
 
@@ -113,16 +74,15 @@ def extract_packets(pcap, source, destination, src_port, dst_port, protocol, tar
 	print("Extracting...")
 	for x in range(len(pkts)):
 		if secret_index < number_of_packets:
-			if source == pkts[x][IPv6].src and destination == pkts[x][IPv6].dst and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x].nh:
-				if targeted_field == "FL":
-					#Conversion of the fl value into 20 bit value
-					secret_extracted += '{0:020b}'.format(pkts[x][IPv6].fl)
-				elif targeted_field == "TC":
-					secret_extracted += '{0:08b}'.format(pkts[x][IPv6].tc)
-				elif targeted_field == "HL":
-					if pkts[x][IPv6].hlim == 250:
+			if source == pkts[x][IP].src and destination == pkts[x][IP].dst and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x][IP].proto:
+				if targeted_field == "TOS":
+					secret_extracted += '{0:08b}'.format(pkts[x][IP].tos)
+				elif targeted_field == "ID":
+					secret_extracted += '{0:16b}'.format(pkts[x][IP].id)
+				elif targeted_field == "TTL":
+					if pkts[x][IP].ttl == 250:
 						secret_extracted += '1'
-					elif pkts[x][IPv6].hlim == 10:
+					elif pkts[x][IP].ttl == 10:
 						secret_extracted += '0'
 				elif targeted_field == "TIMING":
 					if pkts[x].time - prev_time_packet >= delta:
@@ -153,24 +113,24 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
 	print("Extracting...")
 	for x in range(len(pkts)):
 		if secret_index < number_of_bits:
-			if source == pkts[x][IPv6].src and destination == pkts[x][IPv6].dst and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x].nh:
-				if targeted_field == "FL":
+			if source == pkts[x][IP].src and destination == pkts[x][IP].dst and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x][IP].proto:
+				if targeted_field == "ID":
 					#The number of bits of the last packet
-					rest = number_of_bits % 20
+					rest = number_of_bits % 16
 					if number_of_bits - len(secret_extracted) == rest:	#if it is the last packet
-						tmp = '{0:020b}'.format(pkts[x][IPv6].fl)[20 - rest:] #take the last 'rest' bit and don't consider the first bits
+						tmp = '{0:016b}'.format(pkts[x][IP].id)[16 - rest:] #take the last 'rest' bit and don't consider the first bits
 						secret_extracted += tmp
 						secret_index += rest
 					else:
-						secret_extracted += '{0:020b}'.format(pkts[x][IPv6].fl)
+						secret_extracted += '{0:016b}'.format(pkts[x][IP].fl)
 						secret_index += 20
-				elif targeted_field == "TC":
-					secret_extracted += '{0:08b}'.format(pkts[x][IPv6].tc)
+				elif targeted_field == "TOS":
+					secret_extracted += '{0:08b}'.format(pkts[x][IP].tos)
 					secret_index += 8
-				elif targeted_field == "HL":
-					if pkts[x][IPv6].hlim == 250:
+				elif targeted_field == "TTL":
+					if pkts[x][IP].ttl == 250:
 						secret_extracted += '1'
-					elif pkts[x][IPv6].hlim == 10:
+					elif pkts[x][IP].ttl == 10:
 						secret_extracted += '0'
 					secret_index += 1
 				elif targeted_field == "TIMING":
@@ -195,8 +155,8 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
 
 def flow_selection(flows, number):
 	#TODO: extend to more protocols?
-	source = flows.loc[number]['ipv6.src']
-	destination = flows.loc[number]['ipv6.dst']
+	source = flows.loc[number]['ip.src']
+	destination = flows.loc[number]['ip.dst']
 	if not flows.loc[number]['tcp.srcport'] == '-':
 		protocol = 6
 		src_port = flows.loc[number]['tcp.srcport']
@@ -215,7 +175,7 @@ if len(flows) > 0:
 	print('-' * 25)
 	print("CONVERSATIONS FOUND")
 	print(flows.head(50))
-	print("Only the first 50 conversations are shown.")
+	print("Only the first 50 conversations are shown (if present).")
 	print('-' * 25)
 	while True:
 		operation = input("Choose the flow to inspect: ")
@@ -230,7 +190,7 @@ if len(flows) > 0:
 		else:
 			print("This operation is not supported!")
 	print('-' * 25)
-	print("Wireshark filter: ipv6.src == " + str(source) + " and ipv6.dst == " + str(destination) + " and tcp.srcport == " + str(src_port) + " and tcp.dstport == " + str(dst_port))
+	print("Wireshark filter: ip.src == " + str(source) + " and ip.dst == " + str(destination) + " and tcp.srcport == " + str(src_port) + " and tcp.dstport == " + str(dst_port))
 	if settings.bits != 0:
 		payload = extract_bits(settings.pcap, source, destination, src_port, dst_port, protocol, settings.field, settings.bits)
 	else:
