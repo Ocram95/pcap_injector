@@ -99,13 +99,20 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 
 	resulting_pcap_file = str(targeted_field) + "_a=" + str(attack).replace(" ", "_") + "_" + str(pcap)
 
+	time_first_packet = 0
+	start_time_cc = 0
+	finish_time_cc = 0
 	print("Injecting...")
 	for x in range(len(pkts)):
+		if time_first_packet == 0:
+			time_first_packet = pkts[x].time 
 		wire_len.append(pkts[x].wirelen)
 		#Search for the correct flow
 		if source == pkts[x][IPv6].src and destination == pkts[x][IPv6].dst and flow_label == pkts[x][IPv6].fl and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x].nh:
 			#If there is still something to inject
 			if secret_index < len(attack_in_chunks):
+				if secret_index == 0:
+					start_time_cc = pkts[x].time - time_first_packet
 				if targeted_field == "FL":
 					pkts[x][IPv6].fl = int(attack_in_chunks[secret_index],2)
 				elif targeted_field == "TC":
@@ -119,6 +126,8 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 					if int(attack_in_chunks[secret_index], 2) == 1:
 						n += 1
 				secret_index += 1
+			if secret_index == len(attack_in_chunks) and finish_time_cc == 0:
+				finish_time_cc = pkts[x].time - time_first_packet
 			#Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
 			#the time change according to n and delta.
 			pkts[x].time += n * delta
@@ -130,6 +139,8 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 		index += 1
 		#WARNING: check if the linktype is what is needed
 		wrpcap(resulting_pcap_file, pkts[x], append=True, linktype=101)
+	print("CC starting: " + str(start_time_cc))
+	print("CC finishing: " + str(finish_time_cc))
 	print("Injection succesfully finished!")
 	return resulting_pcap_file
 
