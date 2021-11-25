@@ -73,24 +73,25 @@ def extract_packets(pcap, source, destination, src_port, dst_port, protocol, tar
 	prev_time_packet = 0
 	print("Extracting...")
 	for x in range(len(pkts)):
-		if secret_index < number_of_packets:
-			if source == pkts[x][IP].src and destination == pkts[x][IP].dst and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x][IP].proto:
-				if targeted_field == "TOS":
-					secret_extracted += '{0:08b}'.format(pkts[x][IP].tos)
-				elif targeted_field == "ID":
-					secret_extracted += '{0:16b}'.format(pkts[x][IP].id)
-				elif targeted_field == "TTL":
-					if pkts[x][IP].ttl == 250:
-						secret_extracted += '1'
-					elif pkts[x][IP].ttl == 10:
-						secret_extracted += '0'
-				elif targeted_field == "TIMING":
-					if pkts[x].time - prev_time_packet >= delta:
-						secret_extracted += '1'
-					else:
-						secret_extracted += '0'
-					prev_time_packet = pkts[x].time
-				secret_index += 1
+		if TCP in pkts[x] or UDP in pkts[x]:
+			if secret_index < number_of_packets:
+				if source == pkts[x][IP].src and destination == pkts[x][IP].dst and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x][IP].proto:
+					if targeted_field == "TOS":
+						secret_extracted += '{0:08b}'.format(pkts[x][IP].tos)
+					elif targeted_field == "ID":
+						secret_extracted += '{0:16b}'.format(pkts[x][IP].id)
+					elif targeted_field == "TTL":
+						if pkts[x][IP].ttl == 250:
+							secret_extracted += '1'
+						elif pkts[x][IP].ttl == 10:
+							secret_extracted += '0'
+					elif targeted_field == "TIMING":
+						if pkts[x].time - prev_time_packet >= delta:
+							secret_extracted += '1'
+						else:
+							secret_extracted += '0'
+						prev_time_packet = pkts[x].time
+					secret_index += 1
 	#If TIMING CC, the first bit is reserved as a signature, skip it 
 	if targeted_field == "TIMING":
 		secret_extracted = secret_extracted[1:]
@@ -122,7 +123,7 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
 						secret_extracted += tmp
 						secret_index += rest
 					else:
-						secret_extracted += '{0:016b}'.format(pkts[x][IP].fl)
+						secret_extracted += '{0:016b}'.format(pkts[x][IP].id)
 						secret_index += 20
 				elif targeted_field == "TOS":
 					secret_extracted += '{0:08b}'.format(pkts[x][IP].tos)

@@ -102,30 +102,31 @@ def inject(pcap, source, destination, src_port, dst_port, protocol, targeted_fie
 	print("Injecting...")
 	for x in range(len(pkts)):
 		wire_len.append(pkts[x].wirelen)
-		#Search for the correct flow
-		if source == pkts[x][IP].src and destination == pkts[x][IP].dst and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x][IP].proto:
-			#If there is still something to inject
-			if secret_index < len(attack_in_chunks):
-				if targeted_field == "TOS":
-					pkts[x][IP].tos = int(attack_in_chunks[secret_index],2)
-				elif targeted_field == "TTL":
-					if int(attack_in_chunks[secret_index],2) == 0:
-						pkts[x][IP].ttl = 10
-					else:
-						pkts[x][IP].ttl = 250
-				elif targeted_field == "ID":
-					pkts[x][IP].id = int(attack_in_chunks[secret_index],2)
-				elif targeted_field == "TIMING":
-					if int(attack_in_chunks[secret_index], 2) == 1:
-						n += 1
-				secret_index += 1
-			#Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
-			#the time change according to n and delta.
-			pkts[x].time += n * delta
-		#Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
-		#of received packet.
-		if source == pkts[x][IP].dst and destination == pkts[x][IP].src and src_port == pkts[x].dport and dst_port == pkts[x].sport and protocol == pkts[x][IP].proto:
-			pkts[x].time += n * delta
+		if TCP in pkts[x] or UDP in pkts[x]:
+			#Search for the correct flow
+			if source == pkts[x][IP].src and destination == pkts[x][IP].dst and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x][IP].proto:
+				#If there is still something to inject
+				if secret_index < len(attack_in_chunks):
+					if targeted_field == "TOS":
+						pkts[x][IP].tos = int(attack_in_chunks[secret_index],2)
+					elif targeted_field == "TTL":
+						if int(attack_in_chunks[secret_index],2) == 0:
+							pkts[x][IP].ttl = 10
+						else:
+							pkts[x][IP].ttl = 250
+					elif targeted_field == "ID":
+						pkts[x][IP].id = int(attack_in_chunks[secret_index],2)
+					elif targeted_field == "TIMING":
+						if int(attack_in_chunks[secret_index], 2) == 1:
+							n += 1
+					secret_index += 1
+				#Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
+				#the time change according to n and delta.
+				pkts[x].time += n * delta
+			#Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
+			#of received packet.
+			#if source == pkts[x][IP].dst and destination == pkts[x][IP].src and src_port == pkts[x].dport and dst_port == pkts[x].sport and protocol == pkts[x][IP].proto:
+			#	pkts[x].time += n * delta
 		pkts[x].wirelen = wire_len[index]
 		index += 1
 		#WARNING: check if the linktype is what is needed

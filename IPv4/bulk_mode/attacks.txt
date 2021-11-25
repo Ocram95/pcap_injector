@@ -1,7 +1,7 @@
-TOS, h
-TIMING, p
-ID, ll
-TOS, e
-TTL, q
-TIMING, b
-TOS, 0
+TOS, hel
+TIMING, lo
+ID, worl
+TOS, d fo
+TTL, lks
+TIMING, !
+TOS, ...

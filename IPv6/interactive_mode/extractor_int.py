@@ -75,25 +75,26 @@ def extract_packets(pcap, source, destination, src_port, dst_port, protocol, tar
 	prev_time_packet = 0
 	print("Extracting...")
 	for x in range(len(pkts)):
-		if secret_index < number_of_packets:
-			if source == pkts[x][IPv6].src and destination == pkts[x][IPv6].dst and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x].nh:
-				if targeted_field == "FL":
-					#Conversion of the fl value into 20 bit value
-					secret_extracted += '{0:020b}'.format(pkts[x][IPv6].fl)
-				elif targeted_field == "TC":
-					secret_extracted += '{0:08b}'.format(pkts[x][IPv6].tc)
-				elif targeted_field == "HL":
-					if pkts[x][IPv6].hlim == 250:
-						secret_extracted += '1'
-					elif pkts[x][IPv6].hlim == 10:
-						secret_extracted += '0'
-				elif targeted_field == "TIMING":
-					if pkts[x].time - prev_time_packet >= delta:
-						secret_extracted += '1'
-					else:
-						secret_extracted += '0'
-					prev_time_packet = pkts[x].time
-				secret_index += 1
+		if TCP in pkts[x] or UDP in pkts[x]:
+			if secret_index < number_of_packets:
+				if source == pkts[x][IPv6].src and destination == pkts[x][IPv6].dst and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x].nh:
+					if targeted_field == "FL":
+						#Conversion of the fl value into 20 bit value
+						secret_extracted += '{0:020b}'.format(pkts[x][IPv6].fl)
+					elif targeted_field == "TC":
+						secret_extracted += '{0:08b}'.format(pkts[x][IPv6].tc)
+					elif targeted_field == "HL":
+						if pkts[x][IPv6].hlim == 250:
+							secret_extracted += '1'
+						elif pkts[x][IPv6].hlim == 10:
+							secret_extracted += '0'
+					elif targeted_field == "TIMING":
+						if pkts[x].time - prev_time_packet >= delta:
+							secret_extracted += '1'
+						else:
+							secret_extracted += '0'
+						prev_time_packet = pkts[x].time
+					secret_index += 1
 	#If TIMING CC, the first bit is reserved as a signature, skip it 
 	if targeted_field == "TIMING":
 		secret_extracted = secret_extracted[1:]

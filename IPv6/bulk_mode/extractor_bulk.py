@@ -53,7 +53,8 @@ def extract(pcap, attack_dict):
 	pkts = rdpcap(pcap)
 	delta = 1
 	for x in range(len(pkts)):
-		if pkts[x][IPv6].nh != 58 and pkts[x][IPv6].nh != 44 and pkts[x][IPv6].nh != 59 and pkts[x][IPv6].nh != 50:
+		#if pkts[x][IPv6].nh != 58 and pkts[x][IPv6].nh != 44 and pkts[x][IPv6].nh != 59 and pkts[x][IPv6].nh != 50:
+		if TCP in pkts[x] or UDP in pkts[x]:	
 			p_source, p_destination, p_psrc, p_pdst, p_nxt = pkts[x][IPv6].src, pkts[x][IPv6].dst, pkts[x].sport, pkts[x].dport, pkts[x][IPv6].nh
 			for attack in attack_dict:
 				a_source, a_destination, a_psrc, a_pdst, a_nxt = attack['src'], attack['dst'], attack['psrc'], attack['pdst'], attack['nxt']

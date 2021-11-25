@@ -136,36 +136,37 @@ def inject(pcap, output, attack_dict):
 	print("Injecting...")
 	for x in range(len(pkts)):
 		wire_len.append(pkts[x].wirelen)
-		#Packet info
-		p_source, p_destination, p_psrc, p_pdst, p_proto = pkts[x][IP].src, pkts[x][IP].dst, pkts[x].sport, pkts[x].dport, pkts[x][IP].proto
-		for attack in attack_dict:
-			#Attack info
-			a_source, a_destination, a_psrc, a_pdst, a_proto = attack['src'], attack['dst'], attack['psrc'], attack['pdst'], attack['proto']
-			#Check if the x-th packet needs to be injected
-			if p_source == a_source and p_destination == a_destination and p_psrc == a_psrc and p_pdst == a_pdst and p_proto == a_proto:
-				#if attack['injected'] == False:
-				if attack['counter'] < len(attack['attack']):
-					targeted_field = attack['target_field']
-					if targeted_field == 'TOS':
-						pkts[x][IP].tos = int(attack['attack'][attack['counter']],2)
-					elif targeted_field == 'ID':
-						pkts[x][IP].id = int(attack['attack'][attack['counter']],2)
-					elif targeted_field == 'TTL':
-						if attack['attack'][attack['counter']] == "0":
-							pkts[x][IP].ttl = 10
-						else:
-							pkts[x][IP].ttl = 250
-					elif targeted_field == 'TIMING':
-						if attack['attack'][attack['counter']] == "1":
-							attack['n-delay'] += 1
-					attack['counter'] += 1
-				# Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
-				# the time change according to n and delta.
-				pkts[x].time += attack['n-delay'] * delta
-			# Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
-			# of received packet.
-			# if p_flow == a_flow and p_source == a_destination and p_destination == a_source and p_psrc == a_pdst and p_pdst == a_src and p_proto == a_proto:
-			# 	pkts[x].time += attack['n-delay'] * delta
+		if TCP in pkts[x] or UDP in pkts[x]:
+			#Packet info
+			p_source, p_destination, p_psrc, p_pdst, p_proto = pkts[x][IP].src, pkts[x][IP].dst, pkts[x].sport, pkts[x].dport, pkts[x][IP].proto
+			for attack in attack_dict:
+				#Attack info
+				a_source, a_destination, a_psrc, a_pdst, a_proto = attack['src'], attack['dst'], attack['psrc'], attack['pdst'], attack['proto']
+				#Check if the x-th packet needs to be injected
+				if p_source == a_source and p_destination == a_destination and p_psrc == a_psrc and p_pdst == a_pdst and p_proto == a_proto:
+					#if attack['injected'] == False:
+					if attack['counter'] < len(attack['attack']):
+						targeted_field = attack['target_field']
+						if targeted_field == 'TOS':
+							pkts[x][IP].tos = int(attack['attack'][attack['counter']],2)
+						elif targeted_field == 'ID':
+							pkts[x][IP].id = int(attack['attack'][attack['counter']],2)
+						elif targeted_field == 'TTL':
+							if attack['attack'][attack['counter']] == "0":
+								pkts[x][IP].ttl = 10
+							else:
+								pkts[x][IP].ttl = 250
+						elif targeted_field == 'TIMING':
+							if attack['attack'][attack['counter']] == "1":
+								attack['n-delay'] += 1
+						attack['counter'] += 1
+					# Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
+					# the time change according to n and delta.
+					pkts[x].time += attack['n-delay'] * delta
+				# Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
+				# of received packet.
+				# if p_flow == a_flow and p_source == a_destination and p_destination == a_source and p_psrc == a_pdst and p_pdst == a_src and p_proto == a_proto:
+				# 	pkts[x].time += attack['n-delay'] * delta
 		pkts[x].wirelen = wire_len[index]
 		index += 1
 		wrpcap(resulting_pcap_file, pkts[x], append=True, linktype=1)

@@ -107,34 +107,35 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 		if time_first_packet == 0:
 			time_first_packet = pkts[x].time 
 		wire_len.append(pkts[x].wirelen)
-		#Search for the correct flow
-		if source == pkts[x][IPv6].src and destination == pkts[x][IPv6].dst and flow_label == pkts[x][IPv6].fl and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x].nh:
-			#If there is still something to inject
-			if secret_index < len(attack_in_chunks):
-				if secret_index == 0:
-					start_time_cc = pkts[x].time - time_first_packet
-				if targeted_field == "FL":
-					pkts[x][IPv6].fl = int(attack_in_chunks[secret_index],2)
-				elif targeted_field == "TC":
-					pkts[x][IPv6].tc = int(attack_in_chunks[secret_index],2)
-				elif targeted_field == "HL":
-					if int(attack_in_chunks[secret_index],2) == 0:
-						pkts[x][IPv6].hlim = 10
-					else:
-						pkts[x][IPv6].hlim = 250
-				elif targeted_field == "TIMING":
-					if int(attack_in_chunks[secret_index], 2) == 1:
-						n += 1
-				secret_index += 1
-			if secret_index == len(attack_in_chunks) and finish_time_cc == 0:
-				finish_time_cc = pkts[x].time - time_first_packet
-			#Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
-			#the time change according to n and delta.
-			pkts[x].time += n * delta
-		#Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
-		#of received packet.
-		# if source == pkts[x][IPv6].dst and destination == pkts[x][IPv6].src and flow_label == pkts[x][IPv6].fl and src_port == pkts[x].dport and dst_port == pkts[x].sport and protocol == pkts[x].nh:
-		# 	pkts[x].time += n * delta
+		if TCP in pkts[x] or UDP in pkts[x]:
+			#Search for the correct flow
+			if source == pkts[x][IPv6].src and destination == pkts[x][IPv6].dst and flow_label == pkts[x][IPv6].fl and src_port == pkts[x].sport and dst_port == pkts[x].dport and protocol == pkts[x].nh:
+				#If there is still something to inject
+				if secret_index < len(attack_in_chunks):
+					if secret_index == 0:
+						start_time_cc = pkts[x].time - time_first_packet
+					if targeted_field == "FL":
+						pkts[x][IPv6].fl = int(attack_in_chunks[secret_index],2)
+					elif targeted_field == "TC":
+						pkts[x][IPv6].tc = int(attack_in_chunks[secret_index],2)
+					elif targeted_field == "HL":
+						if int(attack_in_chunks[secret_index],2) == 0:
+							pkts[x][IPv6].hlim = 10
+						else:
+							pkts[x][IPv6].hlim = 250
+					elif targeted_field == "TIMING":
+						if int(attack_in_chunks[secret_index], 2) == 1:
+							n += 1
+					secret_index += 1
+				if secret_index == len(attack_in_chunks) and finish_time_cc == 0:
+					finish_time_cc = pkts[x].time - time_first_packet
+				#Modify the time of each packet. In case of non-timing CCs, n = 0 and nothing happens. Otherwise, 
+				#the time change according to n and delta.
+				pkts[x].time += n * delta
+			#Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
+			#of received packet.
+			# if source == pkts[x][IPv6].dst and destination == pkts[x][IPv6].src and flow_label == pkts[x][IPv6].fl and src_port == pkts[x].dport and dst_port == pkts[x].sport and protocol == pkts[x].nh:
+			# 	pkts[x].time += n * delta
 		pkts[x].wirelen = wire_len[index]
 		index += 1
 		#WARNING: check if the linktype is what is needed
