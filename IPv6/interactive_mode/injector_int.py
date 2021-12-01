@@ -35,6 +35,7 @@ def process_command_line(argv):
 	if not settings.attack:
 		raise ValueError("An attack must be specified.")
 
+
 	return settings, args
 
 

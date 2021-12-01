@@ -12,21 +12,8 @@ import csv
 
 def process_command_line(argv):
 	parser = optparse.OptionParser()
-	parser.add_option(
-		'-r',
-		'--pcap',
-		help='Specify the pcap to inject.',
-		action='store',
-		type='string',
-		dest='pcap')
-
-	parser.add_option(
-		'-a',
-		'--attack',
-		help='Specify the attack (i.e., text file, string).',
-		action='store',
-		type='string',
-		dest='attack')
+	parser.add_option('-r', '--pcap', help='Specify the pcap to inject.', action='store', type='string', dest='pcap')
+	parser.add_option('-a', '--attack', help='Specify the attack (i.e., text file, string).', action='store', type='string', dest='attack')
 
 	settings, args = parser.parse_args(argv)
 		

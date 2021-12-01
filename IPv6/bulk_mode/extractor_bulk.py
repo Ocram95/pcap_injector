@@ -50,8 +50,10 @@ def create_dict_attack(injected_flows):
 	return list_of_dict
 
 def extract(pcap, attack_dict):
+	print("Reading input pcap. This might take few minutes...")
 	pkts = rdpcap(pcap)
 	delta = 1
+	print("Extracting...")
 	for x in range(len(pkts)):
 		#if pkts[x][IPv6].nh != 58 and pkts[x][IPv6].nh != 44 and pkts[x][IPv6].nh != 59 and pkts[x][IPv6].nh != 50:
 		if TCP in pkts[x] or UDP in pkts[x]:	
@@ -103,6 +105,7 @@ def extract(pcap, attack_dict):
 	return extracted_attacks
 
 def write_extracted(attacks):
+	print("Writing extracted payloads...")
 	file = open("extracted_attacks.txt", "w")
 	for x in attacks:
 		file.write(x[0] + ', ' + x[1] + '\n')

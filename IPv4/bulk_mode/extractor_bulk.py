@@ -12,22 +12,8 @@ import csv
 
 def process_command_line(argv):
 	parser = optparse.OptionParser()
-	parser.add_option(
-		'-r',
-		'--pcap',
-		help='Specify the pcap to read.',
-		action='store',
-		type='string',
-		dest='pcap')
-
-	parser.add_option(
-		'-i',
-		'--injected_flows',
-		help='Specify csv file of the injected flows.',
-		action='store',
-		type='string',
-		dest='injected_flows')
-
+	parser.add_option('-r', '--pcap', help='Specify the pcap to read.', action='store', type='string', dest='pcap')
+	parser.add_option('-i', '--injected_flows', help='Specify csv file of the injected flows.', action='store', type='string', dest='injected_flows')
 
 	settings, args = parser.parse_args(argv)
 		
@@ -35,6 +21,7 @@ def process_command_line(argv):
 		raise ValueError("A pcap file must be specified.")
 	if not settings.injected_flows:
 		raise ValueError("A csv file with the injected flows must be specified.")
+
 
 	return settings, args
 
@@ -63,8 +50,10 @@ def create_dict_attack(injected_flows):
 	return list_of_dict
 
 def extract(pcap, attack_dict):
+	print("Reading input pcap. This might takes few minutes...")
 	pkts = rdpcap(pcap)
 	delta = 1
+	print("Extracting...")
 	for x in range(len(pkts)):
 		if TCP in pkts[x] or UDP in pkts[x]:
 			p_source, p_destination, p_psrc, p_pdst, p_proto = pkts[x][IP].src, pkts[x][IP].dst, pkts[x].sport, pkts[x].dport, pkts[x][IP].proto
@@ -115,6 +104,7 @@ def extract(pcap, attack_dict):
 	return extracted_attacks
 
 def write_extracted(attacks):
+	print("Writing extracted payloads...")
 	file = open("extracted_attacks.txt", "w")
 	for x in attacks:
 		file.write(x[0] + ', ' + x[1] + '\n')
