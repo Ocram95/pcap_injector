@@ -23,6 +23,7 @@ def process_command_line(argv):
 	parser.add_option('-r', '--pcap', help='Specify the pcap to inject.', action='store', type='string',dest='pcap')
 	parser.add_option('-f', '--field', help='Specify the field to exploit to contain the payload (i.e., FL, TC, HL, TIMING).', action='store', type='string', dest='field')
 	parser.add_option('-a', '--attack', help='Specify the attack (i.e., text file, string).', action='store', type='string', dest='attack')
+	parser.add_option('-w', '--output', help='Specify the output pcap file.', default='output.pcap', action='store', type='string', dest='output')
 
 	settings, args = parser.parse_args(argv)
 		
@@ -34,7 +35,6 @@ def process_command_line(argv):
 		raise ValueError("The specified field is incorrect or not supported.")
 	if not settings.attack:
 		raise ValueError("An attack must be specified.")
-
 
 	return settings, args
 
@@ -88,7 +88,7 @@ def find_flows(pcap_to_read, number_packets):
 	df_final = df_final.fillna('-')
 	return df_final.loc[df_final['#pkts'] >= number_packets]
 
-def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, targeted_field, attack_in_chunks, attack):
+def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, targeted_field, attack_in_chunks):
 	print("Reading input pcap. This might take few minutes...")
 	pkts = rdpcap(pcap)
 	secret_index = 0
@@ -98,7 +98,7 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 	delta = 1
 	n = 0
 
-	resulting_pcap_file = str(targeted_field) + "_a=" + str(attack).replace(" ", "_") + "_" + str(pcap)
+	resulting_pcap_file = settings.output
 
 	time_first_packet = 0
 	start_time_cc = 0
@@ -214,7 +214,7 @@ if len(flows) > 0:
 			print("This operation is not supported!")
 	print('-' * 25)
 	print("Wireshark filter: ipv6.src == " + str(source) + " and ipv6.dst == " + str(destination) + " and ipv6.flow == " + str(flow_label) + " and tcp.srcport == " + str(src_port) + " and tcp.dstport == " + str(dst_port))
-	resulting_pcap_file = inject(settings.pcap, source, destination, flow_label, src_port, dst_port, protocol, settings.field, attack_in_chunks, settings.attack)
+	resulting_pcap_file = inject(settings.pcap, source, destination, flow_label, src_port, dst_port, protocol, settings.field, attack_in_chunks)
 	write_to_csv('injected_flows.csv', settings.pcap, settings.attack, settings.field, source, destination, src_port, dst_port, protocol, lengthp, lengthb)
 	if settings.field == "TIMING":
 		reorder_timing_pcap_file(resulting_pcap_file)

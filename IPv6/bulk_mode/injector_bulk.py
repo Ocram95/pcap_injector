@@ -14,6 +14,7 @@ def process_command_line(argv):
 	parser = optparse.OptionParser()
 	parser.add_option('-r', '--pcap', help='Specify the pcap to inject.', action='store', type='string', dest='pcap')
 	parser.add_option('-a', '--attack', help='Specify the attack (i.e., text file, string).', action='store', type='string', dest='attack')
+	parser.add_option('-w', '--output', help='Specify the output pcap file.', default='output.pcap', action='store', type='string', dest='output')
 
 	settings, args = parser.parse_args(argv)
 		
@@ -21,7 +22,6 @@ def process_command_line(argv):
 		raise ValueError("A pcap file must be specified.")
 	if not settings.attack:
 		raise ValueError("A set of attacks must be specified.")
-
 
 	return settings, args
 
@@ -110,7 +110,7 @@ def create_dict_attack(flow, attack, proto):
 	tmp_dict['n-delay'] = 0
 	return tmp_dict
 
-def inject(pcap, output, attack_dict):
+def inject(pcap, attack_dict):
 	print("Reading input pcap. This might take few minutes...")
 	pkts = rdpcap(pcap)
 	wire_len = []
@@ -118,7 +118,7 @@ def inject(pcap, output, attack_dict):
 
 	delta = 1
 
-	resulting_pcap_file = output + '_' + str(pcap)
+	resulting_pcap_file = settings.output
 
 	print("Injecting...")
 	for x in range(len(pkts)):
@@ -191,7 +191,7 @@ def reorder_timing_pcap_file(pcap_to_reorder):
 settings, args = process_command_line(sys.argv)
 list_of_attacks = read_attack(settings.attack)
 attacks_and_flows = find_flows(settings.pcap, list_of_attacks)
-resulting_pcap_file = inject(settings.pcap, settings.attack, attacks_and_flows)
+resulting_pcap_file = inject(settings.pcap, attacks_and_flows)
 reorder_timing_pcap_file(resulting_pcap_file)
 write_to_csv('injected_flows.csv', attacks_and_flows)
 write_wireshark_filters(attacks_and_flows)
