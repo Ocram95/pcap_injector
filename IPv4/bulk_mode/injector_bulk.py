@@ -155,6 +155,9 @@ def inject(pcap, attack_dict):
 				# of received packet.
 				# if p_flow == a_flow and p_source == a_destination and p_destination == a_source and p_psrc == a_pdst and p_pdst == a_src and p_proto == a_proto:
 				# 	pkts[x].time += attack['n-delay'] * delta
+		#Checksum calculation
+		if pkts[x].haslayer(IP):
+			del pkts[x][IP].chksum	
 		pkts[x].wirelen = wire_len[index]
 		index += 1
 		wrpcap(resulting_pcap_file, pkts[x], append=True, linktype=1)

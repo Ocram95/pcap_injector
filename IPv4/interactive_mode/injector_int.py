@@ -128,6 +128,9 @@ def inject(pcap, source, destination, src_port, dst_port, protocol, targeted_fie
 			#of received packet.
 			#if source == pkts[x][IP].dst and destination == pkts[x][IP].src and src_port == pkts[x].dport and dst_port == pkts[x].sport and protocol == pkts[x][IP].proto:
 			#	pkts[x].time += n * delta
+		#Checksum calculation
+		if pkts[x].haslayer(IP):
+			del pkts[x][IP].chksum	
 		pkts[x].wirelen = wire_len[index]
 		index += 1
 		#WARNING: check if the linktype is what is needed

@@ -136,7 +136,7 @@ def inject(pcap, source, destination, flow_label, src_port, dst_port, protocol, 
 			#Modify the time of packets in the opposite direction. This is necessary for timing CCs to respect the order
 			#of received packet.
 			# if source == pkts[x][IPv6].dst and destination == pkts[x][IPv6].src and flow_label == pkts[x][IPv6].fl and src_port == pkts[x].dport and dst_port == pkts[x].sport and protocol == pkts[x].nh:
-			# 	pkts[x].time += n * delta
+			# 	pkts[x].time += n * delta	
 		pkts[x].wirelen = wire_len[index]
 		index += 1
 		#WARNING: check if the linktype is what is needed
