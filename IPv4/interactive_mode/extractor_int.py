@@ -124,7 +124,7 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
 						secret_index += rest
 					else:
 						secret_extracted += '{0:016b}'.format(pkts[x][IP].id)
-						secret_index += 20
+						secret_index += 16
 				elif targeted_field == "TOS":
 					secret_extracted += '{0:08b}'.format(pkts[x][IP].tos)
 					secret_index += 8
