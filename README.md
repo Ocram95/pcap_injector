@@ -15,7 +15,7 @@ Currently pcapStego supports the following protocols and covert channels:
 
 ## Updates
 
-- 03/02/21: ICMPv4/v6 support for interactive mode. Covert channels: Payload, Timing
+- 03/02/22: ICMPv4/v6 support for interactive mode. Covert channels: Payload, Timing
 - 10/09/21: IPv4 support for both interactive and bulk mode. Covert channels: Type of Service, Time To Live, Identification Number, Timing
 - 07/09/21: first release, IPv6 support for both interactive and bulk mode. Covert channels: Flow Label, Traffic Class, Hop Limit, Timing
 
