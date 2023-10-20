@@ -1,7 +1,5 @@
 cff-version: 1.2.0
 message: If you use this software, please cite the following paper.
-preferred-citation: 
-  type: conference-paper
   authors:
   - family-names: "Zuppelli"
   given-names: "Marco"
