@@ -1,14 +1,16 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-authors:
-- family-names: "Zuppelli"
-  given-names: "Marco"
-  orcid: "https://orcid.org/0000-0001-6932-3199"
-- family-names: "Caviglione"
-  given-names: "Luca"
-  orcid: "https://orcid.org/0000-0001-6466-3354"
-title: "PcapStego: A Tool for Generating Traffic Traces for Experimenting with Network Covert Channels"
-version: 1.0.0
-doi: 10.1145/3465481.3470067
-date-released: 2021-09-02
-url: "https://github.com/Ocram95/pcap_injector"
+preferred-citation:
+  type: conference-paper
+  authors:
+  - family-names: "Zuppelli"
+    given-names: "Marco"
+    orcid: "https://orcid.org/0000-0001-6932-3199"
+  - family-names: "Caviglione"
+    given-names: "Luca"
+    orcid: "https://orcid.org/0000-0001-6466-3354"
+  title: "PcapStego: A Tool for Generating Traffic Traces for Experimenting with Network Covert Channels"
+  version: 1.0.0
+  doi: 10.1145/3465481.3470067
+  date-released: 2021-09-02
+  url: "https://github.com/Ocram95/pcap_injector"
