@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 preferred-citation: 
-type: conference-paper
+  type: conference-paper
 message: If you use this software, please cite the following paper.
 authors:
 - family-names: "Zuppelli"
