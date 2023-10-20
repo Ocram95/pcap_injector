@@ -10,4 +10,5 @@ authors:
 title: "PcapStego: A Tool for Generating Traffic Traces for Experimenting with Network Covert Channels"
 version: 1.0.0
 doi: 10.1145/3465481.3470067
-date-released: 2021-09-02  url: "https://github.com/Ocram95/pcap_injector"
+date-released: 2021-09-02
+url: "https://github.com/Ocram95/pcap_injector"
