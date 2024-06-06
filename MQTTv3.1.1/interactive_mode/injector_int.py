@@ -126,7 +126,7 @@ def modify_topic(original_topic, attack_chunk):
 
 def inject(pcap, source, destination, src_port, dst_port, protocol, targeted_field, attack_in_chunks):
     print("Reading input pcap. This might take a few minutes...")
-    pkts = rdpcap(pcap, 800)
+    pkts = rdpcap(pcap)
     modified_pkts = []
     wire_len = []
     secret_index_connect = 0

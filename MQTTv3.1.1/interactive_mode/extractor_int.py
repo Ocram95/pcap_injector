@@ -99,7 +99,7 @@ def find_flows(pcap_to_read, number_packets, msg_type):
 
 def extract_packets(pcap, source, destination, src_port, dst_port, protocol, targeted_field, number_of_packets):
     print("Reading input pcap. This might take a few minutes...")
-    pkts = rdpcap(pcap, 800)
+    pkts = rdpcap(pcap)
     secret_index = 0
     secret_extracted = ''
     delta = 10
@@ -153,7 +153,7 @@ def extract_packets(pcap, source, destination, src_port, dst_port, protocol, tar
 
 def extract_bits(pcap, source, destination, src_port, dst_port, protocol, targeted_field, number_of_bits):
     print("Reading input pcap. This might take a few minutes...")
-    pkts = rdpcap(pcap, 800)
+    pkts = rdpcap(pcap)
     secret_index = 0
     secret_extracted = ''
     delta = 10
