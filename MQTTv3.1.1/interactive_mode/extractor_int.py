@@ -16,13 +16,11 @@ import base64
 # Field and length of them supported
 FIELD_LENGTH = {
     "KA": 16,
-    "CID": 184,
-    "PW": 524280,
-    "USR": 524280,
-    "U-P": 1048560,
+    "CID": 8,
+    "PW": 8,
+    "USR": 8,
     "AM": 8,
-    "TN": 1,
-    "TIMING": 1
+    "TN": 1
 }
 
 
@@ -47,28 +45,54 @@ def process_command_line(argv):
     if settings.image != 'y' and settings.image != 'n':
         raise ValueError("The image flag can only support value 'y' or 'n'.")
 
-    return settings, args
+    # Fields of the CONNECT control packets
+    if settings.field == "KA" or settings.field == "CID" or settings.field == "PW" or settings.field == "USR":
+        msg_type = 1
+    # Fields of the PUBLISH control packets
+    elif settings.field == "AM" or settings.field == "TN":
+        msg_type = 3
+    else:
+        raise ValueError("The specified field is incorrect or not supported.")
+
+    return settings, args, msg_type
 
 
-def find_flows(pcap_to_read, number_of_packets, msg_type):
+def find_flows(pcap_to_read, number_packets, msg_type):
     # Creation of csv file where each line is composed of three-tuple src and dst for each packet
     print("Creating tmp files...")
-    create_tmp_csv = "tshark -r " + pcap_to_read + f" -c 800 -Y 'mqtt.msgtype == {msg_type}' -T fields -e ip.src -e ip.dst -e tcp.srcport -e tcp.dstport -e ip.proto -E header=y -E separator=, > tmp.csv"
+    if msg_type == 1:  # For CONNECT control packets
+        create_tmp_csv = (
+                "tshark -r "
+                + pcap_to_read
+                + f" -c 800 -Y 'mqtt.msgtype == {msg_type}' -T fields -e ip.src -e ip.dst -e tcp.dstport "
+                  f"-e ip.proto -E header=y -E separator=, > tmp.csv"
+        )
+    else:
+        create_tmp_csv = (
+                "tshark -r "
+                + pcap_to_read
+                + f" -c 800 -Y 'mqtt.msgtype == {msg_type}' -T fields -e ip.src -e ip.dst -e tcp.srcport -e tcp.dstport "
+                  f"-e ip.proto -E header=y -E separator=, > tmp.csv"
+        )
     process = subprocess.Popen(create_tmp_csv, shell=True, stdout=subprocess.PIPE)
     process.wait()
+
     df = pd.read_csv('tmp.csv')
-    df_tcp = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'ip.proto']).size().to_frame('#mqtt_connect_pkts').reset_index()
-    # Deleting of csv file
+
     delete_tmp_csv = "rm tmp.csv"
     process = subprocess.Popen(delete_tmp_csv, shell=True, stdout=subprocess.PIPE)
     process.wait()
     print("Deleting tmp files...")
-    # Adding INDEX column name
     df.index.name = "INDEX"
-    df_mqtt_flows = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport']).size().to_frame('#mqtt_pkts').reset_index()
 
-    # Return flows which contains at least 'number_of_packets' packets
-    df_final = df_mqtt_flows[df_mqtt_flows['#mqtt_pkts'] >= number_of_packets]
+    # Count of packets that compose each flow, grouping by src, dst, and port
+    if msg_type == 1:  # For CONNECT control packets
+        df_mqtt_flows = df.groupby(['ip.src', 'ip.dst', 'tcp.dstport']).size().to_frame('#mqtt_pkts').reset_index()
+    else:
+        df_mqtt_flows = df.groupby(['ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport']).size().to_frame('#mqtt_pkts').reset_index()
+
+    # Return flows which contain at least 'number_of_packets' packets
+    df_final = df_mqtt_flows[df_mqtt_flows['#mqtt_pkts'] >= number_packets]
 
     return df_final
 
@@ -87,19 +111,16 @@ def extract_packets(pcap, source, destination, src_port, dst_port, protocol, tar
             if mqtt.MQTT in pkt:
                 mqtt_pkt = pkt[mqtt.MQTT]
                 if MQTTConnect in mqtt_pkt:
-                    if pkt[IP].src == source and pkt[IP].dst == destination and pkt[TCP].sport == src_port and pkt[TCP].dport == dst_port:
+                    if pkt[IP].src == source and pkt[IP].dst == destination and pkt[TCP].dport == dst_port:
                         if secret_index < number_of_packets:
                             if targeted_field == "KA":
-                                secret_extracted = mqtt_pkt.klive
+                                secret_extracted += mqtt_pkt.klive
                             elif targeted_field == "CID":
-                                secret_extracted = mqtt_pkt.clientId.decode('utf-8')
+                                secret_extracted += mqtt_pkt.clientId.decode('utf-8')
                             elif targeted_field == "PW":
-                                secret_extracted = mqtt_pkt.password.decode('utf-8')
-                            elif targeted_field == "USR":
-                                secret_extracted = mqtt_pkt.username.decode('utf-8')
-                            elif targeted_field == "U-P":
-                                secret_extracted = mqtt_pkt.username.decode('utf-8')
                                 secret_extracted += mqtt_pkt.password.decode('utf-8')
+                            elif targeted_field == "USR":
+                                secret_extracted += mqtt_pkt.username.decode('utf-8')
                             secret_index += 1
                 if MQTTPublish in mqtt_pkt:
                     if pkt[IP].src == source and pkt[IP].dst == destination and pkt.sport == src_port and pkt.dport == dst_port:
@@ -113,16 +134,7 @@ def extract_packets(pcap, source, destination, src_port, dst_port, protocol, tar
                                     secret_extracted += '1'
                                 else:
                                     secret_extracted += '0'
-                            elif targeted_field == "TIMING":
-                                if pkt.time - prev_time_packet >= delta:
-                                    secret_extracted += '1'
-                                else:
-                                    secret_extracted += '0'
-                                prev_time_packet = pkt.time
                             secret_index += 1
-    # If TIMING CC, the first bit is reserved as a signature, skip it
-    if targeted_field == "TIMING":
-        secret_extracted = secret_extracted[1:]
     # Creation of 8 bit chunks to correctly interpret characters
     secret_in_chunks = list((secret_extracted[0+i:8+i] for i in range(0, len(secret_extracted), 8)))
     secret_string = ''
@@ -153,23 +165,23 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
             if mqtt.MQTT in pkt:
                 mqtt_pkt = pkt[mqtt.MQTT]
                 if MQTTConnect in mqtt_pkt:
-                    if pkt[IP].src == source and pkt[IP].dst == destination and pkt[TCP].sport == src_port and pkt[TCP].dport == dst_port:
+                    if pkt[IP].src == source and pkt[IP].dst == destination and pkt[TCP].dport == dst_port:
                         if secret_index < number_of_bits:
                             if targeted_field == "KA":
-                                secret_extracted = mqtt_pkt.klive.to_bytes(2, 'big').decode('utf-8')
+                                secret_extracted += mqtt_pkt.klive.to_bytes(2, 'big').decode('utf-8')
                                 secret_index += 8
                             elif targeted_field == "CID":
-                                secret_extracted = mqtt_pkt.clientId.decode('utf-8')
+                                client_id = mqtt_pkt.clientId.decode('utf-8')
+                                secret_extracted += client_id[0]
+                                secret_index += 8
                             elif targeted_field == "PW":
-                                secret_extracted = mqtt_pkt.password.decode('utf-8')
-                                secret_index += 1
+                                password = mqtt_pkt.password.decode('utf-8')
+                                secret_extracted += password[0]
+                                secret_index += 8
                             elif targeted_field == "USR":
-                                secret_extracted = mqtt_pkt.username.decode('utf-8')
-                                secret_index += 1
-                            elif targeted_field == "U-P":
-                                secret_extracted = mqtt_pkt.username.decode('utf-8')
-                                secret_extracted += mqtt_pkt.password.decode('utf-8')
-                                secret_index += 1
+                                username = mqtt_pkt.username.decode('utf-8')
+                                secret_extracted += username[0]
+                                secret_index += 8
                 if MQTTPublish in mqtt_pkt:
                     if pkt[IP].src == source and pkt[IP].dst == destination and pkt.sport == src_port and pkt.dport == dst_port:
                         if secret_index < number_of_bits:
@@ -184,21 +196,6 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
                                 else:
                                     secret_extracted += '0'
                                 secret_index += 1
-                            elif targeted_field == "TIMING":
-                                time_difference = pkt.time - prev_time_packet
-                                if time_difference >= delta:
-                                    secret_extracted += '1'
-                                else:
-                                    secret_extracted += '0'
-                                prev_time_packet = pkt.time
-                                secret_index += 1
-    # If TIMING CC, the first bit is reserved as a signature, skip it
-    if targeted_field == "TIMING":
-        secret_extracted = secret_extracted[1:]
-        # Creation of 8 bit chunks to correctly interpret characters
-        secret_in_chunks = [secret_extracted[i:i+8] for i in range(0, len(secret_extracted), 8)]
-        secret_string = ''.join([chr(int(chunk, 2)) for chunk in secret_in_chunks])
-        secret_extracted = secret_string
     if targeted_field == "TN":
         # Creation of 8 bit chunks to correctly interpret characters
         secret_in_chunks = [secret_extracted[i:i+8] for i in range(0, len(secret_extracted), 8)]
@@ -209,37 +206,24 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
     return secret_extracted
 
 
-def flow_selection(flows, number):
+def flow_selection(flows, number, msg_type):
     source = flows.loc[number]['ip.src']
     destination = flows.loc[number]['ip.dst']
-    if not flows.loc[number]['tcp.srcport'] == '-':
+    if msg_type == 1:  # For CONNECT control packets
         protocol = 6
-        src_port = flows.loc[number]['tcp.srcport']
         dst_port = flows.loc[number]['tcp.dstport']
-    elif not flows.loc[number]['udp.srcport'] == '-':
-        protocol = 17
-        src_port = flows.loc[number]['udp.srcport']
-        dst_port = flows.loc[number]['udp.dstport']
-    else:
-        raise ValueError("Flow protocol not supported or recognized.")
-
-    if protocol == 6:
-        return source, destination, int(src_port), int(dst_port), protocol
-    else:
-        raise ValueError("Flow protocol not supported or recognized.")
+        return source, destination, None, int(dst_port), protocol
+    else:  # For PUBLISH control packets
+        protocol = 6
+        if 'tcp.srcport' in flows.columns:  # Check if 'tcp.srcport' column exists
+            src_port = flows.loc[number]['tcp.srcport']
+        else:
+            src_port = None
+        dst_port = flows.loc[number]['tcp.dstport']
+        return source, destination, src_port, int(dst_port), protocol
 
 
-settings, args = process_command_line(sys.argv)
-
-# Fields of the CONNECT control packets
-if settings.field == "KA" or settings.field == "CID" or settings.field == "PW" or settings.field == "USR" or settings.field == "U-P":
-    msg_type = 1
-# Fields of the PUBLISH control packets
-elif settings.field == "AM" or settings.field == "TN" or settings.field == "TIMING":
-    msg_type = 3
-else:
-    raise ValueError("The specified field is incorrect or not supported.")
-
+settings, args, msg_type = process_command_line(sys.argv)
 flows = find_flows(settings.pcap, settings.packets, msg_type)
 if len(flows) > 0:
     print('-' * 25)
@@ -255,12 +239,18 @@ if len(flows) > 0:
                 print("Invalid flow index")
                 continue
             else:
-                source, destination, src_port, dst_port, protocol = flow_selection(flows, what_flow)
+                source, destination, src_port, dst_port, protocol = flow_selection(flows, what_flow, msg_type)
                 break
         else:
             print("This operation is not supported!")
     print('-' * 25)
-    print("Wireshark filter: ip.src == " + str(source) + " and ip.dst == " + str(destination) + " and tcp.srcport == " + str(src_port) + " and tcp.dstport == " + str(dst_port))
+    if msg_type == 1:  # For CONNECT control packets
+        # Adjust the Wireshark filter for CONNECT packets without the constraint on the source port
+        print("Wireshark filter: ip.src == " + str(source) + " and ip.dst == " + str(destination) + " and tcp.dstport == " + str(dst_port))
+    else:
+        # Use the original Wireshark filter for other types of packets
+        print("Wireshark filter: ip.src == " + str(source) + " and ip.dst == " + str(destination) + " and tcp.srcport == " + str(src_port) + " and tcp.dstport == " + str(dst_port))
+
     if settings.bits != 0:
         payload = extract_bits(settings.pcap, source, destination, src_port, dst_port, protocol, settings.field, settings.bits)
     else:
