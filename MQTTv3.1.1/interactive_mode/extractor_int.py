@@ -102,8 +102,6 @@ def extract_packets(pcap, source, destination, src_port, dst_port, protocol, tar
     pkts = rdpcap(pcap)
     secret_index = 0
     secret_extracted = ''
-    delta = 10
-    prev_time_packet = 0
     print("Extracting...")
 
     for pkt in pkts:
@@ -156,8 +154,6 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
     pkts = rdpcap(pcap)
     secret_index = 0
     secret_extracted = ''
-    delta = 10
-    prev_time_packet = 0
     print("Extracting...")
 
     for pkt in pkts:
@@ -169,7 +165,7 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
                         if secret_index < number_of_bits:
                             if targeted_field == "KA":
                                 secret_extracted += mqtt_pkt.klive.to_bytes(2, 'big').decode('utf-8')
-                                secret_index += 8
+                                secret_index += 16
                             elif targeted_field == "CID":
                                 client_id = mqtt_pkt.clientId.decode('utf-8')
                                 secret_extracted += client_id[0]
@@ -186,7 +182,8 @@ def extract_bits(pcap, source, destination, src_port, dst_port, protocol, target
                     if pkt[IP].src == source and pkt[IP].dst == destination and pkt.sport == src_port and pkt.dport == dst_port:
                         if secret_index < number_of_bits:
                             if targeted_field == "AM":
-                                secret_extracted += mqtt_pkt.value.decode('utf-8')
+                                am = mqtt_pkt.value.decode('utf-8')
+                                secret_extracted += am[0]
                                 secret_index += 8
                             elif targeted_field == "TN":
                                 topic_name = mqtt_pkt.topic.decode('utf-8')

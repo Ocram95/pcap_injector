@@ -172,9 +172,9 @@ def inject(pcap, source, destination, src_port, dst_port, protocol, targeted_fie
                     if pkt[IP].src == source and pkt[IP].dst == destination and pkt.sport == src_port and pkt.dport == dst_port:
                         if secret_index_publish < len(attack_in_chunks):
                             if targeted_field == "AM":
-                                am_len = mqtt_pkt.underlayer.len - mqtt_pkt.length - 2
                                 new_value = ''.join(chr(int(attack_in_chunks[secret_index_publish][i:i+8], 2)) for i in range(0, len(attack_in_chunks[secret_index_publish]), 8))
-                                mqtt_pkt.value = new_value[:am_len]
+                                remaining_length = len(mqtt_pkt.value) - len(new_value)
+                                mqtt_pkt.value = new_value + mqtt_pkt.value[-remaining_length:].decode('utf-8')
                             elif targeted_field == "TN":
                                 original_topic = mqtt_pkt.topic.decode('utf-8')
                                 new_topic = modify_topic(original_topic, attack_in_chunks[secret_index_publish])
@@ -263,5 +263,4 @@ if len(flows) > 0:
     write_to_csv('injected_flows.csv', settings.pcap, settings.attack, settings.field, source, destination, src_port, dst_port, protocol, lengthp, lengthb)
 else:
     print("No conversations with enough packets are found in this pcap!")
-
 
