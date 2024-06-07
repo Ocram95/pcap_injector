@@ -97,11 +97,11 @@ For bulk mode, instead:
 python3 injector_bulk.py -r pcap_example.pcap -a attacks.txt
 python3 extractor_bulk.py -r attacks.txt_pcap_example.pcap -i injected_flows.csv
 ```
-Similar commands can be used for the IPv4 protocol.
+Similar commands can be used for the other protocols.
 
 # References
 
-* M. Zuppelli, L. Caviglione, [PcapStego: A Tool for Generating Traffic Traces for Experimenting with Network Covert Channels](https://dl.acm.org/doi/10.1145/3465481.3470067), in Proceedings of the 16th International Conference on Availability, Reliability and Security (ARES 2021), Article 95, pp. 1–8, Aug. 2021.
+* M. Zuppelli, L. Caviglione, [pcapStego: A Tool for Generating Traffic Traces for Experimenting with Network Covert Channels](https://dl.acm.org/doi/10.1145/3465481.3470067), in Proceedings of the 16th International Conference on Availability, Reliability and Security (ARES 2021), Article 95, pp. 1–8, Aug. 2021.
 
 ## Papers on Stegomalware
 
@@ -113,12 +113,10 @@ Similar commands can be used for the IPv4 protocol.
 
 * W. Mazurczyk, K. Powójski, L. Caviglione, [IPv6 Covert Channels in the Wild](https://dl.acm.org/doi/10.1145/3360664.3360674), in Proceedings of the Third Central European Cybersecurity Conference (CECC 2019), Munich, Germany, pp. 1 - 6, Nov. 2019. 
 
-# Tools, Curated Lists and Attacks
+## Others
 
 * [Steg-in-the-wild](https://github.com/lucacav/steg-in-the-wild): a curated list of real-world threats, attacks and malware leveraging information hiding, covert channels and steganography.
 * [Malware - Fileless Command Lines](https://github.com/chenerlich/FCL): a repository containing malicious command-lines and malware execution processes.
-
-## pcap Traces
 * [CAIDA IPv6 traffic traces](https://www.caida.org/data/passive/passive_dataset.xml): traffic dumps collected by CAIDA to conduct experiments.
 
 # Acknowledgement 
